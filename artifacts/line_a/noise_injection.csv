@@ -1,0 +1,16 @@
+sigma,steer_type,accuracy
+0.0,none,1.0000
+0.0,random,1.0000
+0.0,learned,1.0000
+0.05,none,1.0000
+0.05,random,1.0000
+0.05,learned,1.0000
+0.1,none,1.0000
+0.1,random,1.0000
+0.1,learned,0.9980
+0.2,none,0.9280
+0.2,random,0.9060
+0.2,learned,0.9260
+0.5,none,0.0880
+0.5,random,0.0840
+0.5,learned,0.0840
