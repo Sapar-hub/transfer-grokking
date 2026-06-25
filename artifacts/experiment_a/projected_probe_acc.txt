@@ -1,0 +1,4 @@
+original_probe_acc: 0.0025
+projected_probe_acc: 0.9968
+ratio: 402.000
+verdict: Geometry preserved (ratio > 0.8)

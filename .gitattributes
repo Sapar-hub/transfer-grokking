@@ -1,0 +1,2 @@
+artifacts/**/*.pth filter=lfs diff=lfs merge=lfs -text
+artifacts/mod_arithmetic_labels.npy filter=lfs diff=lfs merge=lfs -text
