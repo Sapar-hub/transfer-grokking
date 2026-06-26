@@ -37,6 +37,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `eval_degradation.py` | Downstream benchmark eval (needs lm_eval) |
 | `embed_patch.py` | inputs_embeds test: W_emb 128→2560, Phi-2 bypassing BPE |
 | `residual_patch.py` | Inject computed state (h_A) into Phi-2 residual stream via W + context prompt |
+| `multi_layer_patch.py` | Inject h_A at 5 layers simultaneously (per-layer W + same-W ablation) |
 
 ## Commands
 ```bash
@@ -51,6 +52,7 @@ python experiment_a.py              # Learned projection Small→Phi-2
 python scan_models.py               # Probe multiple LLMs
 python embed_patch.py               # Embed patch: inputs_embeds via W_emb
 python residual_patch.py            # Residual patch: inject computed state into Phi-2
+python multi_layer_patch.py         # Multi-layer injection (5 layers simultaneously)
 ```
 
 ## Artifact Cache Map
@@ -67,7 +69,8 @@ Scripts skip computation if a cache file exists:
 | `experiment_a.py` | `artifacts/experiment_a/phi2_layer30_activations.npy` | itself (cache) |
 | `embed_patch.py` | `artifacts/embed_patch/W_emb.pth` | itself (cache) |
 | `residual_patch.py` | `artifacts/residual_patch/phi2_activations.npz` | itself (cache) |
-| `residual_patch.py` | `artifacts/residual_patch/W_layer*.pth` | itself (cache) |
+| `residual_patch.py` | `artifacts/residual_patch/W_layer*.pth` | `multi_layer_patch.py` |
+| `multi_layer_patch.py` | `artifacts/multi_layer_patch/experiment_summary.md` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -87,3 +90,4 @@ Scripts skip computation if a cache file exists:
 5. Tokenizer mismatch is NOT the primary barrier (Clean Experiment confirms)
 6. Grokked models compile algorithms; LLMs simulate them via language — fundamentally incommensurable (Embed Patch: cos=0.82, acc=0.01)
 7. Residual patch partially works (+7% with alpha=0.5), but LM head cannot read Fourier representation (Residual Patch: probe=1.0, logit lens=0.005)
+8. Multi-layer injection HURTS: injecting at 5 layers simultaneously degrades Phi-2 (alpha=0.3→0.105), while single-layer +7% holds. Per-layer W ≈ same W — layer-specific alignment irrelevant.
