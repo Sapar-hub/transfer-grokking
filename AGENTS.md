@@ -36,6 +36,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `steering.py` | Steering vector + random orthogonal projection |
 | `eval_degradation.py` | Downstream benchmark eval (needs lm_eval) |
 | `embed_patch.py` | inputs_embeds test: W_emb 128→2560, Phi-2 bypassing BPE |
+| `residual_patch.py` | Inject computed state (h_A) into Phi-2 residual stream via W + context prompt |
 
 ## Commands
 ```bash
@@ -49,6 +50,7 @@ python line_b.py                    # Projected probe analysis
 python experiment_a.py              # Learned projection Small→Phi-2
 python scan_models.py               # Probe multiple LLMs
 python embed_patch.py               # Embed patch: inputs_embeds via W_emb
+python residual_patch.py            # Residual patch: inject computed state into Phi-2
 ```
 
 ## Artifact Cache Map
@@ -64,6 +66,8 @@ Scripts skip computation if a cache file exists:
 | `experiment_a.py` | `artifacts/experiment_a/projection_W.pth` | itself (cache) |
 | `experiment_a.py` | `artifacts/experiment_a/phi2_layer30_activations.npy` | itself (cache) |
 | `embed_patch.py` | `artifacts/embed_patch/W_emb.pth` | itself (cache) |
+| `residual_patch.py` | `artifacts/residual_patch/phi2_activations.npz` | itself (cache) |
+| `residual_patch.py` | `artifacts/residual_patch/W_layer*.pth` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -82,3 +86,4 @@ Scripts skip computation if a cache file exists:
 4. Steering only distinguishable from random when cos_sim > ~0.7
 5. Tokenizer mismatch is NOT the primary barrier (Clean Experiment confirms)
 6. Grokked models compile algorithms; LLMs simulate them via language — fundamentally incommensurable (Embed Patch: cos=0.82, acc=0.01)
+7. Residual patch partially works (+7% with alpha=0.5), but LM head cannot read Fourier representation (Residual Patch: probe=1.0, logit lens=0.005)
