@@ -13,6 +13,7 @@
 **Files involved:** `model.py`, `configs.py`, `train.py`, `train_small.py`, `clean_test.py`, `experiment_a.py`, `steering.py`, `eval_degradation.py`, `interpret.py`, `verify_fourier.py`, `probe_phi2.py`, `scan_models.py`, `line_a.py`, `line_b.py`, `embed_patch.py`, `residual_patch.py`, `natural_adapter.py`
 
 **Artifacts directory:** `artifacts/`
+**Git LFS:** Model weights and key artifacts are stored via Git LFS. After cloning, run `git lfs pull` to download them.
 
 ---
 
