@@ -38,6 +38,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `embed_patch.py` | inputs_embeds test: W_emb 128→2560, Phi-2 bypassing BPE |
 | `residual_patch.py` | Inject computed state (h_A) into Phi-2 residual stream via W + context prompt |
 | `multi_layer_patch.py` | Inject h_A at 5 layers simultaneously (per-layer W + same-W ablation) |
+| `nonlinear_adapter.py` | Train Linear/MLP adapter between W(h_A) and frozen lm_head — bridge Fourier→language |
 
 ## Commands
 ```bash
@@ -53,6 +54,7 @@ python scan_models.py               # Probe multiple LLMs
 python embed_patch.py               # Embed patch: inputs_embeds via W_emb
 python residual_patch.py            # Residual patch: inject computed state into Phi-2
 python multi_layer_patch.py         # Multi-layer injection (5 layers simultaneously)
+python nonlinear_adapter.py         # Linear/MLP adapter between W(h_A) and frozen lm_head
 ```
 
 ## Artifact Cache Map
@@ -71,6 +73,8 @@ Scripts skip computation if a cache file exists:
 | `residual_patch.py` | `artifacts/residual_patch/phi2_activations.npz` | itself (cache) |
 | `residual_patch.py` | `artifacts/residual_patch/W_layer*.pth` | `multi_layer_patch.py` |
 | `multi_layer_patch.py` | `artifacts/multi_layer_patch/experiment_summary.md` | itself (cache) |
+| `nonlinear_adapter.py` | `artifacts/nonlinear_adapter/mlp_adapter.pth` | itself (cache) |
+| `nonlinear_adapter.py` | `artifacts/nonlinear_adapter/linear_adapter.pth` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -89,5 +93,6 @@ Scripts skip computation if a cache file exists:
 4. Steering only distinguishable from random when cos_sim > ~0.7
 5. Tokenizer mismatch is NOT the primary barrier (Clean Experiment confirms)
 6. Grokked models compile algorithms; LLMs simulate them via language — fundamentally incommensurable (Embed Patch: cos=0.82, acc=0.01)
-7. Residual patch partially works (+7% with alpha=0.5), but LM head cannot read Fourier representation (Residual Patch: probe=1.0, logit lens=0.005)
+7. Residual patch partially works (+7% with alpha=0.5), but frozen W→logit lens gives ~0.005 — W trained with MSE doesn't align to lm_head (Residual Patch: probe=1.0, logit lens=0.005)
 8. Multi-layer injection HURTS: injecting at 5 layers simultaneously degrades Phi-2 (alpha=0.3→0.105), while single-layer +7% holds. Per-layer W ≈ same W — layer-specific alignment irrelevant.
+9. **Nonlinear adapter CONFIRMED**: a trained Linear or MLP between W(h_A) and frozen lm_head achieves **1.0** accuracy. The bottleneck is coordinate alignment, not lm_head architecture. Nonlinearity doesn't help beyond linear — a single trained Linear(2560→2560) is sufficient (Nonlinear Adapter: Linear=1.0, MLP=1.0, trainable lm_head=1.0).
