@@ -35,6 +35,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `line_b.py` | Projected probe deep-dive |
 | `steering.py` | Steering vector + random orthogonal projection |
 | `eval_degradation.py` | Downstream benchmark eval (needs lm_eval) |
+| `embed_patch.py` | inputs_embeds test: W_emb 128→2560, Phi-2 bypassing BPE |
 
 ## Commands
 ```bash
@@ -47,6 +48,7 @@ python line_a.py                    # SVCCA + noise injection
 python line_b.py                    # Projected probe analysis
 python experiment_a.py              # Learned projection Small→Phi-2
 python scan_models.py               # Probe multiple LLMs
+python embed_patch.py               # Embed patch: inputs_embeds via W_emb
 ```
 
 ## Artifact Cache Map
@@ -61,6 +63,7 @@ Scripts skip computation if a cache file exists:
 | `clean_test.py` | `artifacts/steering/steering_vec.npy` | `line_a.py` |
 | `experiment_a.py` | `artifacts/experiment_a/projection_W.pth` | itself (cache) |
 | `experiment_a.py` | `artifacts/experiment_a/phi2_layer30_activations.npy` | itself (cache) |
+| `embed_patch.py` | `artifacts/embed_patch/W_emb.pth` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -70,6 +73,7 @@ Scripts skip computation if a cache file exists:
 - **`nn.Linear` outputs require grad by default** — call `W.requires_grad_(False)` after loading W.pth
 - **Ceiling effect:** B baseline = 1.0; use noise injection or degradation as alternative steering metrics
 - **Proxy fallback:** `scan_models.py` tries SOCKS5 proxy first, falls back to direct connection
+- **BPE splits numbers >9 into subword tokens** — for `phi2_targets` in `embed_patch.py`, take mean over all subword token embeddings per number, not just the first token
 
 ## Key Findings
 1. cos_sim between different-dim residual streams plateaus at ~0.30 regardless of conditioning
@@ -77,3 +81,4 @@ Scripts skip computation if a cache file exists:
 3. Layers align by position, not cross-functionally (SVCCA: A[1]↔B[5] = 0.835)
 4. Steering only distinguishable from random when cos_sim > ~0.7
 5. Tokenizer mismatch is NOT the primary barrier (Clean Experiment confirms)
+6. Grokked models compile algorithms; LLMs simulate them via language — fundamentally incommensurable (Embed Patch: cos=0.82, acc=0.01)
