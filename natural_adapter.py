@@ -324,6 +324,13 @@ def write_summary(acc_text_baseline, layer_results, gen_results):
     else:
         lines.append("**adapter acc ≈ baseline** → Phi-2 не кодирует ответ линейно в residual stream.")
 
+    lines.append("\n## Known Limitation\n")
+    lines.append(f"Text baseline ({acc_text_baseline:.4f}) uses single template "
+                 f"\"# ({{a}} + {{b}}) % 97 =\".")
+    lines.append("Adapter trained on mixed templates (random per pair). "
+                 "Direct comparison is unfair.")
+    lines.append("Fair comparison requires single-template adapter (not run).\n")
+
     if gen_results:
         t0 = [r for r in gen_results if r["train_template"] == 0]
         if t0:

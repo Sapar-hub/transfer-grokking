@@ -15,4 +15,5 @@
 | C: phi2_L31→97 | — | Linear→97 | 0.4133 |
 
 ## Verdict
+Phi-2 partially encodes the answer at L31 (0.41), above lm_head's 0.25 but far from 1.0. Information is not perfectly linearly separable.
 
