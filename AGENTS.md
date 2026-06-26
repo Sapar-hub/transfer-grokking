@@ -39,6 +39,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `residual_patch.py` | Inject computed state (h_A) into Phi-2 residual stream via W + context prompt |
 | `multi_layer_patch.py` | Inject h_A at 5 layers simultaneously (per-layer W + same-W ablation) |
 | `nonlinear_adapter.py` | Train Linear/MLP adapter between W(h_A) and frozen lm_head — bridge Fourier→language |
+| `probe_final_phi2.py` | Train Linear(2560→97) on Phi-2 final layer (L31) activations from single template |
 
 ## Commands
 ```bash
@@ -55,6 +56,7 @@ python embed_patch.py               # Embed patch: inputs_embeds via W_emb
 python residual_patch.py            # Residual patch: inject computed state into Phi-2
 python multi_layer_patch.py         # Multi-layer injection (5 layers simultaneously)
 python nonlinear_adapter.py         # Linear/MLP adapter between W(h_A) and frozen lm_head
+python probe_final_phi2.py          # Linear probe on Phi-2 L31 (single template)
 ```
 
 ## Artifact Cache Map
@@ -75,6 +77,7 @@ Scripts skip computation if a cache file exists:
 | `multi_layer_patch.py` | `artifacts/multi_layer_patch/experiment_summary.md` | itself (cache) |
 | `nonlinear_adapter.py` | `artifacts/nonlinear_adapter/mlp_adapter.pth` | itself (cache) |
 | `nonlinear_adapter.py` | `artifacts/nonlinear_adapter/linear_adapter.pth` | itself (cache) |
+| `probe_final_phi2.py` | `artifacts/probe_final_phi2/phi2_L31_acts.npy` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -96,3 +99,4 @@ Scripts skip computation if a cache file exists:
 7. Residual patch partially works (+7% with alpha=0.5), but frozen W→logit lens gives ~0.005 — W trained with MSE doesn't align to lm_head (Residual Patch: probe=1.0, logit lens=0.005)
 8. Multi-layer injection HURTS: injecting at 5 layers simultaneously degrades Phi-2 (alpha=0.3→0.105), while single-layer +7% holds. Per-layer W ≈ same W — layer-specific alignment irrelevant.
 9. **Nonlinear adapter CONFIRMED**: a trained Linear or MLP between W(h_A) and frozen lm_head achieves **1.0** accuracy. The bottleneck is coordinate alignment, not lm_head architecture. Nonlinearity doesn't help beyond linear — a single trained Linear(2560→2560) is sufficient (Nonlinear Adapter: Linear=1.0, MLP=1.0, trainable lm_head=1.0).
+10. **Template mixing was a major confound** in Natural Adapter: mixed-templates probe = 0.04, but single-template Linear readout from L31 = **0.41** (Phi-2 text baseline = 0.25). Phi-2 encodes the answer partially but not perfectly linearly at L31 — far from the small model's 1.0, but much higher than natural_adapter implied (Probe Final: L31 Linear→97 = 0.41).
