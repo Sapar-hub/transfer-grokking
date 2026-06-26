@@ -13,6 +13,7 @@ Research repo: Do grokked transformers learn scale-invariant geometric represent
 - CPU-only (`DEVICE = torch.device("cpu")`)
 - `matplotlib.use('Agg')` in all scripts (no display)
 - No formatter/linter/typechecker config
+- **Git LFS:** `artifacts/**/*.pth` and `artifacts/mod_arithmetic_labels.npy` are LFS-tracked. Run `git lfs pull` after cloning.
 
 ## Config
 Configs live in `model.py`:
