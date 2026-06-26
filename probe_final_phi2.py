@@ -179,12 +179,15 @@ def main():
     verdict = ""
     c = results["C: phi2_L31→97"]
     if c < 0.05:
-        verdict = "CONFIRMED: Phi-2 does NOT encode answer linearly at L31."
-        verdict += " Single template, no mixed confound. Fundamental result."
+        verdict = "Phi-2 does NOT encode answer linearly at L31."
     elif c < text_baseline + 0.03:
         verdict = "Phi-2 encodes ≈ what lm_head reads linearly."
     elif c > 0.5:
         verdict = "SURPRISE: Linear L31 readout >> Phi-2's own lm_head."
+    else:
+        verdict = (f"Phi-2 partially encodes the answer at L31 ({c:.2f}), "
+                   f"above lm_head's {text_baseline:.2f} but far from 1.0. "
+                   f"Information is not perfectly linearly separable.")
     lines.append(f"## Verdict\n{verdict}\n")
 
     text = "\n".join(lines)
