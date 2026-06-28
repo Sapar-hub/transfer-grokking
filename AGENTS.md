@@ -42,6 +42,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `nonlinear_adapter.py` | Train Linear/MLP adapter between W(h_A) and frozen lm_head — bridge Fourier→language |
 | `probe_final_phi2.py` | Train Linear(2560→97) on Phi-2 final layer (L31) activations from single template |
 | `ce_projection.py` | Train W: 128→2560 via CE through frozen lm_head (no layernorm); compare MSE vs CE |
+| `l31_patch.py` | Patch W_CE/W_MSE at Phi-2 L31 (last layer) — alpha sweep comparison vs L10 |
 
 ## Commands
 ```bash
@@ -60,6 +61,7 @@ python multi_layer_patch.py         # Multi-layer injection (5 layers simultaneo
 python nonlinear_adapter.py         # Linear/MLP adapter between W(h_A) and frozen lm_head
 python probe_final_phi2.py          # Linear probe on Phi-2 L31 (single template)
 python ce_projection.py             # CE-vs-MSE: train W through frozen lm_head
+python l31_patch.py                 # Patch W_CE/W_MSE at Phi-2 L31 (alpha sweep vs L10)
 ```
 
 ## Artifact Cache Map
@@ -84,6 +86,8 @@ Scripts skip computation if a cache file exists:
 | `ce_projection.py` | `artifacts/ce_projection/phi2_L10_acts.npy` | itself (cache) |
 | `ce_projection.py` | `artifacts/ce_projection/W_mse.pth` | itself (cache) |
 | `ce_projection.py` | `artifacts/ce_projection/W_ce.pth` | itself (cache) |
+| `l31_patch.py` | `artifacts/l31_patch/alpha_sweep_l31.csv` | itself (cache) |
+| `l31_patch.py` | `artifacts/l31_patch/comparison_l10_vs_l31.md` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -107,3 +111,4 @@ Scripts skip computation if a cache file exists:
 9. **Nonlinear adapter = old adapter, reformatted.** Trained Linear(2560→2560) between W(h_A) and frozen lm_head = 1.0, but this composes two linear layers → one Linear(W(h_A)→97). Identical to existing adapter=0.999. The claim "bottleneck is coordinate alignment" is not supported — lm_head is passive, gradient passes through it (Nonlinear Adapter: Linear=1.0, MLP=1.0, trainable lm_head=1.0).
 10. **Single-template probe on L31 = 0.41 confirms syntactic pattern, not arithmetic encoding.** The jump from 0.04 (mixed templates) to 0.41 (single template) shows Phi-2 processes stable syntax → stable activation geometry. Different templates → different paths → structure disappears. Natural adapter conclusion (Phi-2 doesn't encode mod arithmetic linearly) stands. Template mixing was a measurement confound, not a conclusion confound (Probe Final: L31 Linear→97 = 0.41).
 11. **CE-trained W resolves barrier 1: W_CE(h_A) → lm_head = 1.0.** Training W via CE through frozen lm_head (no layernorm) achieves perfect logit-lens accuracy, proving MSE was the sole cause of lm_head misalignment. However, barrier 2 persists: W_CE patched at L10 degrades text accuracy (α=0.5: 0.26 vs W_MSE 0.305) — the context/geometry incompatibility in a single residual stream remains unsolved. cos_sim=0.0 with L10 targets confirms W_CE finds directions orthogonal to Phi-2 activations (CE Projection: logit_lens=1.0, probe=1.0, cos_sim=0.0).
+12. **L31 patch with W_CE achieves 1.0 — neural function call works.** W_CE(h_A) injected at Phi-2's last layer (L31) gives perfect accuracy (α=1.0: 1.0). Monotonic improvement from α=0.3 (0.490) through α=0.7 (0.995) to α=1.0 (1.0). W_MSE at L31 does nothing (all α = baseline 0.235). The context/geometry conflict was layer-specific, not fundamental: at L31 there is no remaining computation to corrupt the injected signal, and W_CE is perfectly aligned with lm_head's decoding directions (L31 Patch: α=0.5→0.705, α=1.0→1.0).
