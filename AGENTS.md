@@ -41,6 +41,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `multi_layer_patch.py` | Inject h_A at 5 layers simultaneously (per-layer W + same-W ablation) |
 | `nonlinear_adapter.py` | Train Linear/MLP adapter between W(h_A) and frozen lm_head — bridge Fourier→language |
 | `probe_final_phi2.py` | Train Linear(2560→97) on Phi-2 final layer (L31) activations from single template |
+| `ce_projection.py` | Train W: 128→2560 via CE through frozen lm_head (no layernorm); compare MSE vs CE |
 
 ## Commands
 ```bash
@@ -58,6 +59,7 @@ python residual_patch.py            # Residual patch: inject computed state into
 python multi_layer_patch.py         # Multi-layer injection (5 layers simultaneously)
 python nonlinear_adapter.py         # Linear/MLP adapter between W(h_A) and frozen lm_head
 python probe_final_phi2.py          # Linear probe on Phi-2 L31 (single template)
+python ce_projection.py             # CE-vs-MSE: train W through frozen lm_head
 ```
 
 ## Artifact Cache Map
@@ -79,6 +81,9 @@ Scripts skip computation if a cache file exists:
 | `nonlinear_adapter.py` | `artifacts/nonlinear_adapter/mlp_adapter.pth` | itself (cache) |
 | `nonlinear_adapter.py` | `artifacts/nonlinear_adapter/linear_adapter.pth` | itself (cache) |
 | `probe_final_phi2.py` | `artifacts/probe_final_phi2/phi2_L31_acts.npy` | itself (cache) |
+| `ce_projection.py` | `artifacts/ce_projection/phi2_L10_acts.npy` | itself (cache) |
+| `ce_projection.py` | `artifacts/ce_projection/W_mse.pth` | itself (cache) |
+| `ce_projection.py` | `artifacts/ce_projection/W_ce.pth` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -101,3 +106,4 @@ Scripts skip computation if a cache file exists:
 8. Multi-layer injection HURTS: injecting at 5 layers simultaneously degrades Phi-2 (alpha=0.3→0.105), while single-layer +7% holds. Per-layer W ≈ same W — layer-specific alignment irrelevant.
 9. **Nonlinear adapter = old adapter, reformatted.** Trained Linear(2560→2560) between W(h_A) and frozen lm_head = 1.0, but this composes two linear layers → one Linear(W(h_A)→97). Identical to existing adapter=0.999. The claim "bottleneck is coordinate alignment" is not supported — lm_head is passive, gradient passes through it (Nonlinear Adapter: Linear=1.0, MLP=1.0, trainable lm_head=1.0).
 10. **Single-template probe on L31 = 0.41 confirms syntactic pattern, not arithmetic encoding.** The jump from 0.04 (mixed templates) to 0.41 (single template) shows Phi-2 processes stable syntax → stable activation geometry. Different templates → different paths → structure disappears. Natural adapter conclusion (Phi-2 doesn't encode mod arithmetic linearly) stands. Template mixing was a measurement confound, not a conclusion confound (Probe Final: L31 Linear→97 = 0.41).
+11. **CE-trained W resolves barrier 1: W_CE(h_A) → lm_head = 1.0.** Training W via CE through frozen lm_head (no layernorm) achieves perfect logit-lens accuracy, proving MSE was the sole cause of lm_head misalignment. However, barrier 2 persists: W_CE patched at L10 degrades text accuracy (α=0.5: 0.26 vs W_MSE 0.305) — the context/geometry incompatibility in a single residual stream remains unsolved. cos_sim=0.0 with L10 targets confirms W_CE finds directions orthogonal to Phi-2 activations (CE Projection: logit_lens=1.0, probe=1.0, cos_sim=0.0).
