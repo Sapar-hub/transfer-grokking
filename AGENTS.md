@@ -43,6 +43,9 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `probe_final_phi2.py` | Train Linear(2560→97) on Phi-2 final layer (L31) activations from single template |
 | `ce_projection.py` | Train W: 128→2560 via CE through frozen lm_head (no layernorm); compare MSE vs CE |
 | `l31_patch.py` | Patch W_CE/W_MSE at Phi-2 L31 (last layer) — alpha sweep comparison vs L10 |
+| `eval_l31_perplexity.py` | Perplexity degradation: L31 patch on WikiText-2 |
+| `cross_model_l31.py` | Cross-model L31: W_CE + alpha sweep for Qwen2-Math |
+| `cross_model_probe.py` | Cross-model probe: probe on W_CE-injected hidden states (bypasses BPE tokenizer barrier) |
 
 ## Commands
 ```bash
@@ -62,6 +65,9 @@ python nonlinear_adapter.py         # Linear/MLP adapter between W(h_A) and froz
 python probe_final_phi2.py          # Linear probe on Phi-2 L31 (single template)
 python ce_projection.py             # CE-vs-MSE: train W through frozen lm_head
 python l31_patch.py                 # Patch W_CE/W_MSE at Phi-2 L31 (alpha sweep vs L10)
+python eval_l31_perplexity.py          # Perplexity degradation of L31 patch on WikiText-2
+python cross_model_l31.py              # Cross-model validation (Qwen2-Math W_CE + L27 sweep)
+python cross_model_probe.py            # Cross-model probe (bypasses BPE tokenizer barrier)
 ```
 
 ## Artifact Cache Map
@@ -88,6 +94,12 @@ Scripts skip computation if a cache file exists:
 | `ce_projection.py` | `artifacts/ce_projection/W_ce.pth` | itself (cache) |
 | `l31_patch.py` | `artifacts/l31_patch/alpha_sweep_l31.csv` | itself (cache) |
 | `l31_patch.py` | `artifacts/l31_patch/comparison_l10_vs_l31.md` | itself (cache) |
+| `eval_l31_perplexity.py` | `artifacts/l31_patch/perplexity_sweep.csv` | itself (cache) |
+| `cross_model_l31.py` | `artifacts/cross_model/W_ce_qwen2_math_1.5b.pth` | itself (cache) |
+| `cross_model_l31.py` | `artifacts/cross_model/qwen2_math_1.5b_L27_acts.npy` | itself (cache) |
+| `cross_model_l31.py` | `artifacts/cross_model/comparison_qwen2_math_1.5b_vs_phi2.md` | itself (cache) |
+| `cross_model_probe.py` | `artifacts/cross_model/probe_comparison.md` | itself (cache) |
+| `cross_model_probe.py` | `artifacts/cross_model/probe_comparison.png` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -98,6 +110,7 @@ Scripts skip computation if a cache file exists:
 - **Ceiling effect:** B baseline = 1.0; use noise injection or degradation as alternative steering metrics
 - **Proxy fallback:** `scan_models.py` tries SOCKS5 proxy first, falls back to direct connection
 - **BPE splits numbers >9 into subword tokens** — for `phi2_targets` in `embed_patch.py`, take mean over all subword token embeddings per number, not just the first token
+- **Qwen2-Math BPE splits all numbers >9**: Qwen2-Math's tokenizer maps 87/97 numbers to subword tokens (only digits 0–9 are single tokens). This makes lm_head-based evaluation of mod arithmetic impossible (10 unique tokens for 97 classes). For cross-model experiments, verify tokenizer first.
 
 ## Key Findings
 1. cos_sim between different-dim residual streams plateaus at ~0.30 regardless of conditioning
@@ -112,3 +125,6 @@ Scripts skip computation if a cache file exists:
 10. **Single-template probe on L31 = 0.41 confirms syntactic pattern, not arithmetic encoding.** The jump from 0.04 (mixed templates) to 0.41 (single template) shows Phi-2 processes stable syntax → stable activation geometry. Different templates → different paths → structure disappears. Natural adapter conclusion (Phi-2 doesn't encode mod arithmetic linearly) stands. Template mixing was a measurement confound, not a conclusion confound (Probe Final: L31 Linear→97 = 0.41).
 11. **CE-trained W resolves barrier 1: W_CE(h_A) → lm_head = 1.0.** Training W via CE through frozen lm_head (no layernorm) achieves perfect logit-lens accuracy, proving MSE was the sole cause of lm_head misalignment. However, barrier 2 persists: W_CE patched at L10 degrades text accuracy (α=0.5: 0.26 vs W_MSE 0.305) — the context/geometry incompatibility in a single residual stream remains unsolved. cos_sim=0.0 with L10 targets confirms W_CE finds directions orthogonal to Phi-2 activations (CE Projection: logit_lens=1.0, probe=1.0, cos_sim=0.0).
 12. **L31 patch with W_CE achieves 1.0 — neural function call works.** W_CE(h_A) injected at Phi-2's last layer (L31) gives perfect accuracy (α=1.0: 1.0). Monotonic improvement from α=0.3 (0.490) through α=0.7 (0.995) to α=1.0 (1.0). W_MSE at L31 does nothing (all α = baseline 0.235). The context/geometry conflict was layer-specific, not fundamental: at L31 there is no remaining computation to corrupt the injected signal, and W_CE is perfectly aligned with lm_head's decoding directions (L31 Patch: α=0.5→0.705, α=1.0→1.0).
+13. **L31 patch at α=1.0 catastrophically degrades general LM perplexity.** On WikiText-2 last-token loss: α=0.5 mild (+0.04), α=1.0 catastrophic (+29.87). W_CE(h_A) is unrelated to WikiText-2 context → model can't predict next token. In practice, need α < 1.0 to balance mod arithmetic accuracy vs general LM quality (L31 Degradation: α=0.5→65.88 PPL, α=1.0→5.9e14 PPL).
+14. **Cross-model comparison with Qwen2-Math invalidated by tokenizer mismatch.** Qwen2-Math's BPE splits 87/97 numbers into subword tokens → only 10 unique lm_head outputs for 97 classes. W_CE logit lens capped at 7.3% (not from absence of structure but from lm_head resolution). The hypothesis "math-pretrained LLMs resonate better with W_CE" is untestable via lm_head for models with number-splitting BPE. Per-layer probes confirm Qwen2-Math encodes no mod arithmetic structure (max=0.0276 vs random 0.0103, from scan_models.py).
+15. **Cross-model probe (bypasses tokenizer): probe on W_CE-injected L_last converges for all models.** Using LogisticRegression probe on the injected hidden state (bypasses lm_head): Phi-2 L31 probe(α=0.0)=0.7067 → probe(α=0.5)=0.9996 → probe(α=1.0)=1.0000. Qwen2-Math-1.5B L27 probe(α=0.0)=0.3174 → probe(α=0.5)=0.9848 → probe(α=1.0)=0.9993. With the full mod arithmetic template, Qwen encodes partial structure (0.32 vs scan_models' 0.0276 with "a b" template — confirming finding #10 about template sensitivity). At α=0.5 both converge to ~0.99 — W_CE dominates and model-specific differences vanish. **Hypothesis not supported**: math pretraining does not improve W_CE resonance. Phi-3-mini-4k incomplete cache — not tested (Cross-model Probe: Phi-2=0.9996, Qwen=0.9848 at α=0.5).
