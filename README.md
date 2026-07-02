@@ -1,5 +1,7 @@
 # Grokking — Geometry Transfer Experiments
 
+[![DOI](https://zenodo.org/badge/1280708393.svg)](https://doi.org/10.5281/zenodo.21142333)
+
 ## Project Overview
 
 **Core question:** Do grokked transformers learn a *scale-invariant geometric representation* of modular arithmetic that can be linearly transferred between models of different sizes?
@@ -10,21 +12,27 @@
 - Task: (a + b) mod 97 with direct token IDs (0–96)
 - Both models grok to 100% validation accuracy
 
-**Files involved:** `model.py`, `utils.py`, `train.py`, `train_small.py`, `clean_test.py`, `experiment_a.py`, `verify_fourier.py`, `line_a.py`, `line_b.py`, `embed_patch.py`, `ce_projection.py`, `l31_patch.py`, `eval_l31_perplexity.py` (core); additional experiments archived in `experiments/`
+**Files involved:** see individual phases below; core scripts at root, archived experiments in `experiments/`
 
 **Repository structure:**
 ```
-├── model.py, utils.py, train.py,…   ← core scripts
-├── experiments/                     ← archived dead ends
+├── ce_projection.py, l31_patch.py,… ← core scripts (13 total)
+├── experiments/                     ← exploratory/dead-end scripts (16 total)
 ├── artifacts/                       ← all experiment outputs
 ├── paper/                           ← manuscript (forthcoming)
+├── pyproject.toml                   ← pip install -e . support
 ├── CITATION.cff                     ← citation metadata
 ├── .zenodo.json                     ← Zenodo archive config
 ├── LICENSE                          ← MIT
 └── README.md
 ```
 
-**Artifacts directory:** `artifacts/`
+**Setup:**
+```bash
+source .venv/bin/activate    # existing virtual env
+# or: pip install -e .       # creates CLI entry points, installs deps
+```
+
 **Git LFS:** Model weights and key artifacts are stored via Git LFS. After cloning, run `git lfs pull` to download them.
 
 ---
@@ -62,7 +70,7 @@
 
 ## Phase 3: LLM Probing
 
-**Files:** `probe_phi2.py`, `scan_models.py`
+**Files:** `experiments/probe_phi2.py`, `experiments/scan_models.py`
 
 **Purpose:** Check whether large pre-trained LLMs encode modular arithmetic in their residual stream.
 
@@ -81,7 +89,7 @@
 
 ## Phase 4: Steering with Random Projection
 
-**Files:** `steering.py`, `eval_degradation.py`, `interpret.py`
+**Files:** `experiments/steering.py`, `experiments/eval_degradation.py`, `experiments/interpret.py`
 
 **Purpose:** Extract a steering vector from the small model (high-confidence minus low-confidence activations) and apply it to Phi-2 via a random orthogonal projection 128→2560.
 
@@ -279,7 +287,7 @@ Linear transfer between compiled and simulated representations is impossible reg
 
 ## Natural Adapter — Phi-2 Residual Stream from Natural Language
 
-**File:** `natural_adapter.py`, `eval_natural_adapter.py`
+**File:** `experiments/natural_adapter.py`, `experiments/eval_natural_adapter.py`
 
 **Purpose:** Inverse of Embed Patch. Instead of asking "can we inject grokked structure into Phi-2?", ask "does Phi-2's residual stream already contain enough information about (a+b) mod 97 that a linear adapter can read it directly — without the small model?"
 
@@ -400,7 +408,7 @@ The earlier experiments (clean test, residual patch, nonlinear adapter) all fail
 | 3 | Noise σ ∈ {0.5, 1.0, 2.0} annihilates signal | `line_a.py` | Embedding norm calibration → σ ∈ {0.05, 0.10, 0.20, 0.50} |
 | 4 | `seaborn` not installed | `line_a.py` | Drop-in replacement with `matplotlib` |
 | 5 | Baseline B=1.0 — no headroom for steering | `clean_test.py`, `line_a.py` | Noise injection + degradation as alternative metrics |
-| 6 | Network unavailable for lm_eval downloads | `eval_degradation.py` | Skipped; used local eval instead |
+| 6 | Network unavailable for lm_eval downloads | `experiments/eval_degradation.py` | Skipped; used local eval instead |
 | 7 | model_a not needed for line_a but imported | `line_a.py` | Removed unused load |
 | 8 | `nn.Linear` outputs require grad by default | `line_b.py` | Added `requires_grad_(False)` after loading `W.pth` |
 
@@ -430,8 +438,8 @@ If you use this software or its findings in your research, please cite:
            Across Model Residual Streams},
   year = {2026},
   publisher = {Zenodo},
-  doi = {10.5281/zenodo.XXXXXXX},
-  url = {https://github.com/ssaparm/transfer-grokking}
+  doi = {10.5281/zenodo.21142333},
+  url = {https://doi.org/10.5281/zenodo.21142333}
 }
 ```
 
