@@ -112,7 +112,11 @@ def train_model(cfg, seed=42):
     return grokking, best_val_acc, model, train_accs, val_accs
 
 
-if __name__ == "__main__":
+def main():
     ok_a, acc_a, model_a, *_ = train_model(CFG_SMALL)
     if ok_a:
         ok_b, acc_b, model_b, *_ = train_model(CFG_BIG)
+
+
+if __name__ == "__main__":
+    main()

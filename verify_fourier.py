@@ -79,5 +79,9 @@ def verify():
     return acc
 
 
+def main():
+    return verify()
+
+
 if __name__ == "__main__":
-    verify()
+    main()

@@ -111,5 +111,9 @@ def train():
     return grokking_detected, best_val_acc
 
 
+def main():
+    return train()
+
+
 if __name__ == "__main__":
-    train()
+    main()
