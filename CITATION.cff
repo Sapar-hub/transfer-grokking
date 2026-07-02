@@ -13,7 +13,7 @@ repository-code: "https://github.com/Sapar-hub/transfer-grokking"
 type: software
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.21142333"
+    value: "10.5281/zenodo.21142986"
 keywords:
   - grokking
   - mechanistic interpretability
