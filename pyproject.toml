@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "transfer-grokking"
+version = "1.0.0"
+description = "Linear Projection of Fourier Representations Across Model Residual Streams"
+authors = [
+  {name = "Saparmyrat Saparmyradov"},
+]
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.0",
+    "numpy",
+    "scikit-learn",
+    "matplotlib",
+    "transformers>=4.30",
+]
+
+[tool.setuptools]
+py-modules = [
+    "ce_projection", "clean_test", "embed_patch", "eval_l31_perplexity",
+    "experiment_a", "l31_patch", "line_a", "line_b",
+    "model", "train", "train_small", "utils", "verify_fourier",
+]
+
+[project.scripts]
+transfer-grokking-train = "train:main"
+transfer-grokking-train-small = "train_small:main"
+transfer-grokking-project = "ce_projection:main"
+transfer-grokking-patch = "l31_patch:main"
+transfer-grokking-eval = "eval_l31_perplexity:main"
+transfer-grokking-clean-test = "clean_test:main"
+transfer-grokking-embed-patch = "embed_patch:main"
+transfer-grokking-verify-fourier = "verify_fourier:main"
+transfer-grokking-experiment-a = "experiment_a:main"
+transfer-grokking-line-a = "line_a:main"
+transfer-grokking-line-b = "line_b:main"
