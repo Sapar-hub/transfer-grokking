@@ -11,6 +11,9 @@ date-released: 2026-07-02
 license: MIT
 repository-code: "https://github.com/ssaparm/transfer-grokking"
 type: software
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.21142333"
 keywords:
   - grokking
   - mechanistic interpretability
