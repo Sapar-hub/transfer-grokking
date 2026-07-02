@@ -151,7 +151,7 @@ source .venv/bin/activate    # existing virtual env
 
 ## Phase 7: Line A — Multi-layer Alignment
 
-**File:** `line_a.py`
+**File:** `experiments/line_a.py`
 
 **Purpose:** Test whether aligning layers by functional similarity (rather than naive last-layer pairing) improves geometry transfer, and whether steering can be evaluated via noise injection (circumventing the ceiling effect).
 
@@ -199,7 +199,7 @@ A[1]  0.464  0.457  0.439  0.382  0.320  0.835
 
 ## Phase 8: Line B — Proxy Tokenization Deep-dive
 
-**File:** `line_b.py`
+**File:** `experiments/line_b.py`
 
 **Purpose:** Detailed analysis of *why* the projected probe reaches 0.93 despite W's low cos_sim. Is the linear separability genuine or artefactual?
 
@@ -404,13 +404,13 @@ The earlier experiments (clean test, residual patch, nonlinear adapter) all fail
 | # | Problem | Where | Fix |
 |---|---------|-------|-----|
 | 1 | `sklearn` not in base Python env | all experiments | Use `.venv/` virtual environment |
-| 2 | CCA overfitting on (2823, 128/512) — all pairs ~1.0 | `line_a.py` | SVCCA with PCA truncation k=20 |
-| 3 | Noise σ ∈ {0.5, 1.0, 2.0} annihilates signal | `line_a.py` | Embedding norm calibration → σ ∈ {0.05, 0.10, 0.20, 0.50} |
-| 4 | `seaborn` not installed | `line_a.py` | Drop-in replacement with `matplotlib` |
-| 5 | Baseline B=1.0 — no headroom for steering | `clean_test.py`, `line_a.py` | Noise injection + degradation as alternative metrics |
+| 2 | CCA overfitting on (2823, 128/512) — all pairs ~1.0 | `experiments/line_a.py` | SVCCA with PCA truncation k=20 |
+| 3 | Noise σ ∈ {0.5, 1.0, 2.0} annihilates signal | `experiments/line_a.py` | Embedding norm calibration → σ ∈ {0.05, 0.10, 0.20, 0.50} |
+| 4 | `seaborn` not installed | `experiments/line_a.py` | Drop-in replacement with `matplotlib` |
+| 5 | Baseline B=1.0 — no headroom for steering | `clean_test.py`, `experiments/line_a.py` | Noise injection + degradation as alternative metrics |
 | 6 | Network unavailable for lm_eval downloads | `experiments/eval_degradation.py` | Skipped; used local eval instead |
-| 7 | model_a not needed for line_a but imported | `line_a.py` | Removed unused load |
-| 8 | `nn.Linear` outputs require grad by default | `line_b.py` | Added `requires_grad_(False)` after loading `W.pth` |
+| 7 | model_a not needed for line_a but imported | `experiments/line_a.py` | Removed unused load |
+| 8 | `nn.Linear` outputs require grad by default | `experiments/line_b.py` | Added `requires_grad_(False)` after loading `W.pth` |
 
 ## Key Findings (Bottom Line)
 

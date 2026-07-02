@@ -33,8 +33,8 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `scan_models.py` | Probe Qwen2-Math, DeepSeek-Math, Phi-3 |
 | `experiment_a.py` | Learned projection 128→2560 (Small→Phi-2) |
 | `clean_test.py` | Clean experiment: Small→Big (same tokenizer) |
-| `line_a.py` | SVCCA heatmap + noise injection steering |
-| `line_b.py` | Projected probe deep-dive |
+| `experiments/line_a.py` | SVCCA heatmap + noise injection steering |
+| `experiments/line_b.py` | Projected probe deep-dive |
 | `steering.py` | Steering vector + random orthogonal projection |
 | `eval_degradation.py` | Downstream benchmark eval (needs lm_eval) |
 | `embed_patch.py` | inputs_embeds test: W_emb 128→2560, Phi-2 bypassing BPE |
@@ -57,8 +57,8 @@ python train_small.py               # Train small model
 python train.py                     # Train both (70/30 split)
 python verify_fourier.py            # Verify Fourier structure
 python clean_test.py                # Run clean experiment
-python line_a.py                    # SVCCA + noise injection
-python line_b.py                    # Projected probe analysis
+python experiments/line_a.py                    # SVCCA + noise injection
+python experiments/line_b.py                    # Projected probe analysis
 python experiment_a.py              # Learned projection Small→Phi-2
 python scan_models.py               # Probe multiple LLMs
 python embed_patch.py               # Embed patch: inputs_embeds via W_emb
@@ -78,11 +78,11 @@ Scripts skip computation if a cache file exists:
 | Created By | File | Used By |
 |-----------|------|---------|
 | `train_small.py` / `train.py` | `artifacts/small/best_model.pth` | all downstream |
-| `train.py` | `artifacts/big/best_model.pth` | `clean_test.py`, `line_a.py` |
-| `clean_test.py` | `artifacts/activations/small_acts_test.npy` | `line_a.py`, `line_b.py` |
-| `clean_test.py` | `artifacts/activations/big_acts_test.npy` | `line_a.py` |
-| `clean_test.py` | `artifacts/projection/W.pth` | `line_a.py`, `line_b.py` |
-| `clean_test.py` | `artifacts/steering/steering_vec.npy` | `line_a.py` |
+| `train.py` | `artifacts/big/best_model.pth` | `clean_test.py`, `experiments/line_a.py` |
+| `clean_test.py` | `artifacts/activations/small_acts_test.npy` | `experiments/line_a.py`, `experiments/line_b.py` |
+| `clean_test.py` | `artifacts/activations/big_acts_test.npy` | `experiments/line_a.py` |
+| `clean_test.py` | `artifacts/projection/W.pth` | `experiments/line_a.py`, `experiments/line_b.py` |
+| `clean_test.py` | `artifacts/steering/steering_vec.npy` | `experiments/line_a.py` |
 | `experiment_a.py` | `artifacts/experiment_a/projection_W.pth` | itself (cache) |
 | `experiment_a.py` | `artifacts/experiment_a/phi2_layer30_activations.npy` | itself (cache) |
 | `embed_patch.py` | `artifacts/embed_patch/W_emb.pth` | itself (cache) |
