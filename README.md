@@ -438,8 +438,8 @@ If you use this software or its findings in your research, please cite:
            Across Model Residual Streams},
   year = {2026},
   publisher = {Zenodo},
-  doi = {10.5281/zenodo.21142333},
-  url = {https://doi.org/10.5281/zenodo.21142333}
+  doi = {10.5281/zenodo.21142986},
+  url = {https://doi.org/10.5281/zenodo.21142986}
 }
 ```
 
