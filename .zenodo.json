@@ -1,0 +1,28 @@
+{
+  "title": "Transfer Grokking: Linear Projection of Fourier Representations Across Model Residual Streams",
+  "description": "Code and experiments for the Transfer Grokking project: investigating whether grokked transformers learn scale-invariant geometric representations of modular arithmetic that can be linearly transferred between models of different sizes and architectures.",
+  "creators": [
+    {
+      "name": "Saparmyradov, Saparmyrat",
+      "affiliation": "RTU MIREA",
+      "orcid": "0009-0001-2717-732X"
+    }
+  ],
+  "keywords": [
+    "grokking",
+    "mechanistic interpretability",
+    "activation patching",
+    "residual stream",
+    "modular arithmetic",
+    "Phi-2",
+    "representation transfer"
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open",
+  "communities": [
+    {
+      "identifier": "zenodo"
+    }
+  ]
+}

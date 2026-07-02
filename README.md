@@ -10,7 +10,19 @@
 - Task: (a + b) mod 97 with direct token IDs (0–96)
 - Both models grok to 100% validation accuracy
 
-**Files involved:** `model.py`, `configs.py`, `train.py`, `train_small.py`, `clean_test.py`, `experiment_a.py`, `steering.py`, `eval_degradation.py`, `interpret.py`, `verify_fourier.py`, `probe_phi2.py`, `scan_models.py`, `line_a.py`, `line_b.py`, `embed_patch.py`, `residual_patch.py`, `natural_adapter.py`, `ce_projection.py`, `l31_patch.py`
+**Files involved:** `model.py`, `utils.py`, `train.py`, `train_small.py`, `clean_test.py`, `experiment_a.py`, `verify_fourier.py`, `line_a.py`, `line_b.py`, `embed_patch.py`, `ce_projection.py`, `l31_patch.py`, `eval_l31_perplexity.py` (core); additional experiments archived in `experiments/`
+
+**Repository structure:**
+```
+├── model.py, utils.py, train.py,…   ← core scripts
+├── experiments/                     ← archived dead ends
+├── artifacts/                       ← all experiment outputs
+├── paper/                           ← manuscript (forthcoming)
+├── CITATION.cff                     ← citation metadata
+├── .zenodo.json                     ← Zenodo archive config
+├── LICENSE                          ← MIT
+└── README.md
+```
 
 **Artifacts directory:** `artifacts/`
 **Git LFS:** Model weights and key artifacts are stored via Git LFS. After cloning, run `git lfs pull` to download them.
@@ -406,6 +418,24 @@ The earlier experiments (clean test, residual patch, nonlinear adapter) all fail
 10. **Neural function call works: inject grokked state at L31 → perfect accuracy** — W_CE(h_A) patched at Phi-2's last layer (L31, α=1.0) gives 1.0. The context/geometry conflict was layer-specific, not fundamental: L31 has no remaining computation to corrupt the signal, and W_CE is perfectly aligned with lm_head's decoding directions. The series' core question is resolved: grokked representations are transferable with the right interface (CE-trained W + last-layer injection).
 
 ---
+
+## Citation
+
+If you use this software or its findings in your research, please cite:
+
+```bibtex
+@software{saparmyradov2026transfergrokking,
+  author = {Saparmyradov, Saparmyrat},
+  title = {{Transfer Grokking}: {Linear} Projection of {Fourier} Representations
+           Across Model Residual Streams},
+  year = {2026},
+  publisher = {Zenodo},
+  doi = {10.5281/zenodo.XXXXXXX},
+  url = {https://github.com/ssaparm/transfer-grokking}
+}
+```
+
+Machine-readable citation metadata is available in [`CITATION.cff`](./CITATION.cff).
 
 ## Contributing
 

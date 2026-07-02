@@ -6,6 +6,7 @@ Research repo: Do grokked transformers learn scale-invariant geometric represent
 - **Model B (big):** 6 layers, d_model=512, d_mlp=2048
 - **Task:** (a + b) mod 97 with direct token IDs (0–96)
 - **Artifacts:** `artifacts/`
+- **Experiments archive:** `experiments/` (dead ends and exploratory scripts)
 
 ## Setup
 - No build system — pure Python, one script per experiment
@@ -46,6 +47,8 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `eval_l31_perplexity.py` | Perplexity degradation: L31 patch on WikiText-2 |
 | `cross_model_l31.py` | Cross-model L31: W_CE + alpha sweep for Qwen2-Math |
 | `cross_model_probe.py` | Cross-model probe: probe on W_CE-injected hidden states (bypasses BPE tokenizer barrier) |
+
+Scripts above `ce_projection.py` are archived in `experiments/` (exploratory dead ends). Scripts from `ce_projection.py` onward represent the final successful approach.
 
 ## Commands
 ```bash
