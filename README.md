@@ -1,6 +1,6 @@
 # Grokking — Geometry Transfer Experiments
 
-[![DOI](https://zenodo.org/badge/1280708393.svg)](https://doi.org/10.5281/zenodo.21142333)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21142986.svg)](https://doi.org/10.5281/zenodo.21142986)
 
 ## Project Overview
 
