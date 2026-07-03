@@ -1,6 +1,8 @@
 # Grokking — Geometry Transfer Experiments
 
-[![DOI](https://zenodo.org/badge/1280708393.svg)](https://doi.org/10.5281/zenodo.21142333)
+[![Code DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21142986.svg)](https://doi.org/10.5281/zenodo.21142986)
+[![Preprint DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21100972.svg)](https://doi.org/10.5281/zenodo.21100972)
+[![ORCID](https://img.shields.io/badge/ORCID-0009--0001--2717--732X-a6ce39?logo=orcid&logoColor=white)](https://orcid.org/0009-0001-2717-732X)
 
 ## Project Overview
 
@@ -438,8 +440,17 @@ If you use this software or its findings in your research, please cite:
            Across Model Residual Streams},
   year = {2026},
   publisher = {Zenodo},
-  doi = {10.5281/zenodo.21142333},
-  url = {https://doi.org/10.5281/zenodo.21142333}
+  doi = {10.5281/zenodo.21142986},
+  url = {https://doi.org/10.5281/zenodo.21142986}
+}
+
+@article{saparmyradov2026transfergrokkingpreprint,
+  author = {Saparmyradov, Saparmyrat},
+  title = {{Transfer Grokking}: {Linear} Projection of {Fourier} Representations
+           Across Model Residual Streams},
+  year = {2026},
+  doi = {10.5281/zenodo.21100972},
+  url = {https://doi.org/10.5281/zenodo.21100972}
 }
 ```
 
