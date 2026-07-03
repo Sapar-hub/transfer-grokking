@@ -1,6 +1,6 @@
 # Grokking — Geometry Transfer Experiments
 
-[![Code DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21161778.svg)](https://doi.org/10.5281/zenodo.21161778)
+[![Code DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21142333.svg)](https://doi.org/10.5281/zenodo.21142333)
 [![Preprint DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21100972.svg)](https://doi.org/10.5281/zenodo.21100972)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--2717--732X-a6ce39?logo=orcid&logoColor=white)](https://orcid.org/0009-0001-2717-732X)
 
@@ -440,8 +440,8 @@ If you use this software or its findings in your research, please cite:
            Across Model Residual Streams},
   year = {2026},
   publisher = {Zenodo},
-  doi = {10.5281/zenodo.21161778},
-  url = {https://doi.org/10.5281/zenodo.21161778}
+  doi = {10.5281/zenodo.21142333},
+  url = {https://doi.org/10.5281/zenodo.21142333}
 }
 
 @article{saparmyradov2026transfergrokkingpreprint,
