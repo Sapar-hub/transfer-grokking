@@ -1,31 +1,20 @@
 import torch
 import torch.optim as optim
 import numpy as np
-import os
+import os, sys
 
 from model import SmallTransformer
 from utils import DEVICE, P, generate_all_pairs, plot_curves
 
 ARTIFACTS = "artifacts"
-SMALL_DIR = f"{ARTIFACTS}/small"
+
+OP = sys.argv[1] if len(sys.argv) > 1 else "add"
+SMALL_DIR = f"{ARTIFACTS}/small{'' if OP == 'add' else '_mult'}"
 os.makedirs(SMALL_DIR, exist_ok=True)
 
 
 def train():
-    """Train small model to grok (30% data, detect by sliding window).
-
-    Purpose:
-        Early-phase training script that produces the grokked small model
-        used for Fourier verification and as the source for steering vectors.
-    What:
-        Uses 30% of P^2 pairs for training (memorisation phase), AdamW with
-        weight decay 1.0, detects grokking via rolling window of val_acc.
-        Saves best model to artifacts/small/best_model.pth.
-    Why:
-        30% data split is standard in grokking literature (Power et al.)
-        to ensure a clear memorisation-to-generalisation transition.
-        The 500-epoch window detects consistent generalisation.
-    """
+    """Train small model to grok (30% data, detect by sliding window)."""
     torch.manual_seed(42)
     model = SmallTransformer().to(DEVICE)
     optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1.0)
@@ -36,7 +25,7 @@ def train():
     train_idx = indices[:num_train]
     val_idx = indices[num_train:]
 
-    all_inputs, all_labels = generate_all_pairs()
+    all_inputs, all_labels = generate_all_pairs(op=OP)
 
     train_inputs = all_inputs[train_idx]
     train_labels = all_labels[train_idx]
@@ -44,7 +33,7 @@ def train():
     val_labels = all_labels[val_idx]
 
     batch_size = 256
-    num_epochs = 30000
+    num_epochs = 100000 if OP == "multiply" else 30000
 
     train_accs = []
     val_accs = []
@@ -52,6 +41,8 @@ def train():
     grokking_detected = False
     train_at_1_epoch = None
     window_size = 500
+
+    print(f"\nTraining {OP} mod {P} small model...\n")
 
     for epoch in range(1, num_epochs + 1):
         model.train()

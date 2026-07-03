@@ -1,10 +1,12 @@
-# CE Projection Experiment Summary
+# CE Projection Experiment Summary (seed=46, op=add)
 
 ## Setup
 
 | Parameter | Value |
 |-----------|-------|
 | Layer | 10 |
+| Operation | add mod 97 |
+| Seed | 46 |
 | D_small → D_phi2 | 128 → 2560 |
 | Train / Test | 6586 / 2823 |
 | W_CE loss | CE through frozen lm_head (no layernorm) |
@@ -16,8 +18,8 @@
 
 | Metric | W_MSE | W_CE | Delta |
 |--------|-------|------|-------|
-| Cos sim (test) | 0.1441 | 0.0000 | -0.1441 |
-| Logit lens | 0.0117 | 1.0000 | +0.9883 |
+| Cos sim (test) | 0.1441 | -0.0000 | -0.1441 |
+| Logit lens | 0.0120 | 1.0000 | +0.9880 |
 | Probe on W(h) | 1.0000 | 1.0000 | +0.0000 |
 
 ## Alpha sweep (text accuracy at L10)
@@ -32,6 +34,6 @@
 
 Baseline (no patch): 0.2350
 
-**Logit lens verdict**: W_CE > 0.5 — MSE was the primary barrier.
+---
 
-**Alpha sweep verdict**: CE aligns with lm_head but text accuracy remains limited — context/geometry conflict persists.
+_Seed 46, operation: add_

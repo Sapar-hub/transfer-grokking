@@ -7,13 +7,19 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os, csv
+import os, csv, sys
 
 from utils import DEVICE, P, train_probe
 
 ARTIFACTS = "artifacts"
 OUT_DIR = f"{ARTIFACTS}/ce_projection"
 os.makedirs(OUT_DIR, exist_ok=True)
+
+SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 42
+OP = sys.argv[2] if len(sys.argv) > 2 else "add"
+SUFFIX = "" if OP == "add" else "_mult"
+SEED_DIR = f"{OUT_DIR}/seeds{SUFFIX}"
+os.makedirs(SEED_DIR, exist_ok=True)
 
 D_SMALL = 128
 D_PHI2 = 2560
@@ -33,7 +39,7 @@ def get_split():
 
 
 def collect_phi2_activations(tokenizer, model, inputs_list):
-    path = f"{OUT_DIR}/phi2_L10_acts.npy"
+    path = f"{OUT_DIR}/phi2_L10_acts{SUFFIX}.npy"
     if os.path.exists(path):
         print(f"[collect] Loading cached Phi-2 L{LAYER} activations...")
         return np.load(path)
@@ -70,8 +76,8 @@ def collect_phi2_activations(tokenizer, model, inputs_list):
 
 
 def train_W_mse(X_train, X_test, Y_train, Y_test):
-    path_w = f"{OUT_DIR}/W_mse.pth"
-    path_cos = f"{OUT_DIR}/cos_sim_mse.npy"
+    path_w = f"{SEED_DIR}/W_mse_seed{SEED}.pth"
+    path_cos = f"{SEED_DIR}/cos_sim_mse_seed{SEED}.npy"
     if os.path.exists(path_w) and os.path.exists(path_cos):
         W = nn.Linear(D_SMALL, D_PHI2, bias=False)
         W.load_state_dict(torch.load(path_w, map_location=DEVICE, weights_only=True))
@@ -123,15 +129,15 @@ def train_W_mse(X_train, X_test, Y_train, Y_test):
     plt.plot(range(len(cos_sims)), cos_sims, 'o-')
     plt.xlabel('Epoch (x500)'); plt.ylabel('Cosine Sim (test)')
     plt.tight_layout()
-    plt.savefig(f"{OUT_DIR}/mse_training.png")
+    plt.savefig(f"{SEED_DIR}/mse_training_seed{SEED}.png")
     plt.close()
 
     return W, cos_sims[-1]
 
 
 def train_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced):
-    path_w = f"{OUT_DIR}/W_ce.pth"
-    path_csv = f"{OUT_DIR}/ce_training_log.csv"
+    path_w = f"{SEED_DIR}/W_ce_seed{SEED}.pth"
+    path_csv = f"{SEED_DIR}/ce_training_log_seed{SEED}.csv"
     if os.path.exists(path_w):
         W = nn.Linear(D_SMALL, D_PHI2, bias=False)
         W.load_state_dict(torch.load(path_w, map_location=DEVICE, weights_only=True))
@@ -179,7 +185,7 @@ def train_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced):
     plt.plot(range(len(log_data)), [r[3] for r in log_data], label='val_acc')
     plt.xlabel('Epoch (x500)'); plt.ylabel('Accuracy'); plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{OUT_DIR}/ce_training.png")
+    plt.savefig(f"{SEED_DIR}/ce_training_seed{SEED}.png")
     plt.close()
 
     return W
@@ -254,12 +260,13 @@ def evaluate_alpha(model, tokenizer, test_pairs, labels, W, h_A_test, alpha, lay
 
 def main():
     print("=" * 60)
-    print("CE Projection: train W via CrossEntropy through frozen lm_head")
+    print(f"CE Projection: train W via CrossEntropy (seed={SEED}, op={OP})")
     print("=" * 60)
 
     print("\n[0] Loading data...")
-    small_acts = np.load(f"{ARTIFACTS}/small_model_activations.npy")
-    labels = np.load(f"{ARTIFACTS}/mod_arithmetic_labels.npy", allow_pickle=True)
+    small_acts = np.load(f"{ARTIFACTS}/small_model_activations{SUFFIX}.npy")
+    labels = np.load(f"{ARTIFACTS}/mod_arithmetic_labels{SUFFIX}.npy", allow_pickle=True)
+    torch.manual_seed(SEED)
     train_idx, test_idx = get_split()
     small_train = small_acts[train_idx]
     small_test = small_acts[test_idx]
@@ -298,6 +305,13 @@ def main():
     print(f"\n[4] Training W_CE (via frozen lm_head, no layernorm)...")
     W_ce = train_W_ce(small_train, labels_train, small_test, labels_test, lm_head_sliced)
 
+    # Save reference copies for seed=42 addition back-compat
+    if SEED == 42 and OP == "add":
+        torch.save(W_mse.state_dict(), f"{OUT_DIR}/W_mse.pth")
+        torch.save(W_ce.state_dict(), f"{OUT_DIR}/W_ce.pth")
+        np.save(f"{OUT_DIR}/cos_sim_mse.npy", cos_mse)
+        print("  [back-compat] Saved reference W_mse.pth, W_ce.pth")
+
     print(f"\n[5] Logit lens comparison...")
     ll_mse = logit_lens_accuracy(W_mse, small_test, labels_test, lm_head_sliced)
     ll_ce = logit_lens_accuracy(W_ce, small_test, labels_test, lm_head_sliced)
@@ -328,7 +342,7 @@ def main():
             print(f"  [{label}] alpha={alpha:.1f}: text_acc = {acc:.4f}")
         alpha_results.append(row)
 
-    with open(f"{OUT_DIR}/alpha_sweep.csv", "w", newline="") as f:
+    with open(f"{SEED_DIR}/alpha_sweep_seed{SEED}.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["W", *ALPHAS])
         w.writerows(alpha_results)
@@ -336,11 +350,13 @@ def main():
     print(f"\n[7] Summary...")
     baseline_text = alpha_results[0][1]
     lines = []
-    lines.append("# CE Projection Experiment Summary\n")
+    lines.append(f"# CE Projection Experiment Summary (seed={SEED}, op={OP})\n")
     lines.append("## Setup\n")
     lines.append("| Parameter | Value |")
     lines.append("|-----------|-------|")
     lines.append(f"| Layer | {LAYER} |")
+    lines.append(f"| Operation | {OP} mod {P} |")
+    lines.append(f"| Seed | {SEED} |")
     lines.append(f"| D_small → D_phi2 | {D_SMALL} → {D_PHI2} |")
     lines.append(f"| Train / Test | 6586 / 2823 |")
     lines.append(f"| W_CE loss | CE through frozen lm_head (no layernorm) |")
@@ -361,29 +377,15 @@ def main():
         ce_a = alpha_results[1][i + 1]
         lines.append(f"| {alpha:.1f} | {mse_a:.4f} | {ce_a:.4f} | {ce_a - mse_a:+.4f} |")
     lines.append(f"\nBaseline (no patch): {baseline_text:.4f}\n")
-
-    if ll_ce > 0.5:
-        lines.append("**Logit lens verdict**: W_CE > 0.5 — MSE was the primary barrier.\n")
-    elif ll_ce > 0.1:
-        lines.append("**Logit lens verdict**: Partial alignment (0.1–0.5) — MSE contributed but is not the only issue.\n")
-    else:
-        lines.append("**Logit lens verdict**: < 0.1 — incompatibility is deeper than loss choice.\n")
-
-    ce_alpha_05 = alpha_results[1][ALPHAS.index(0.5) + 1]
-    mse_alpha_05 = alpha_results[0][ALPHAS.index(0.5) + 1]
-    if ll_ce > 0.5 and ce_alpha_05 > mse_alpha_05 + 0.05:
-        lines.append("**Alpha sweep verdict**: CE significantly beats MSE at α=0.5 — MSE was the barrier.\n")
-    elif ll_ce > 0.5:
-        lines.append("**Alpha sweep verdict**: CE aligns with lm_head but text accuracy remains limited — context/geometry conflict persists.\n")
-    else:
-        lines.append("**Alpha sweep verdict**: CE does not resolve the transfer problem.\n")
+    lines.append("---\n")
+    lines.append(f"_Seed {SEED}, operation: {OP}_\n")
 
     text = "\n".join(lines)
-    with open(f"{OUT_DIR}/comparison_summary.md", "w") as f:
+    with open(f"{OUT_DIR}/comparison_summary{SUFFIX}.md", "w") as f:
         f.write(text)
     print(text)
 
-    print(f"\nDone. Artifacts in {OUT_DIR}/")
+    print(f"\nDone. Artifacts in {SEED_DIR}/")
 
 
 if __name__ == "__main__":

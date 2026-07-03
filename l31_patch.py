@@ -2,13 +2,18 @@ import torch
 import torch.nn as nn
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
-import os, csv
+import os, csv, sys
 
 from utils import DEVICE, P
 
 ARTIFACTS = "artifacts"
 CE_DIR = f"{ARTIFACTS}/ce_projection"
-OUT_DIR = f"{ARTIFACTS}/l31_patch"
+
+SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 42
+OP = sys.argv[2] if len(sys.argv) > 2 else "add"
+SUFFIX = "" if OP == "add" else "_mult"
+
+OUT_DIR = f"{ARTIFACTS}/l31_patch{SUFFIX}"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 D_SMALL = 128
@@ -82,9 +87,9 @@ def main():
     print(f"L31 Patch: alpha sweep with W_CE and W_MSE at layer {PATCH_LAYER}")
     print("=" * 60)
 
-    print("\n[0] Loading data...")
-    small_acts = np.load(f"{ARTIFACTS}/small_model_activations.npy")
-    labels = np.load(f"{ARTIFACTS}/mod_arithmetic_labels.npy", allow_pickle=True)
+    print(f"\n[0] Loading data (op={OP}, seed={SEED})...")
+    small_acts = np.load(f"{ARTIFACTS}/small_model_activations{SUFFIX}.npy")
+    labels = np.load(f"{ARTIFACTS}/mod_arithmetic_labels{SUFFIX}.npy", allow_pickle=True)
     _, test_idx = get_split()
 
     rng_eval = np.random.RandomState(42)
@@ -94,11 +99,13 @@ def main():
     eval_h_A = small_acts[eval_idx]
     print(f"  200 eval pairs loaded.")
 
-    print("\n[1] Loading W_ce.pth and W_mse.pth...")
+    print(f"\n[1] Loading seed {SEED} W_ce and W_mse...")
     W_ce = nn.Linear(D_SMALL, D_PHI2, bias=False)
-    W_ce.load_state_dict(torch.load(f"{CE_DIR}/W_ce.pth", map_location=DEVICE, weights_only=True))
+    W_ce.load_state_dict(torch.load(
+        f"{CE_DIR}/seeds{SUFFIX}/W_ce_seed{SEED}.pth", map_location=DEVICE, weights_only=True))
     W_mse = nn.Linear(D_SMALL, D_PHI2, bias=False)
-    W_mse.load_state_dict(torch.load(f"{CE_DIR}/W_mse.pth", map_location=DEVICE, weights_only=True))
+    W_mse.load_state_dict(torch.load(
+        f"{CE_DIR}/seeds{SUFFIX}/W_mse_seed{SEED}.pth", map_location=DEVICE, weights_only=True))
     print("  Both loaded.")
 
     print(f"\n[2] Loading Phi-2...")
@@ -123,13 +130,14 @@ def main():
             print(f"  [{label}] alpha={alpha:.1f}: text_acc = {acc:.4f}")
         results.append(row)
 
-    with open(f"{OUT_DIR}/alpha_sweep_l31.csv", "w", newline="") as f:
+    with open(f"{OUT_DIR}/alpha_sweep_l31_seed{SEED}.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["W", *ALPHAS])
         w.writerows(results)
 
-    print(f"\n[4] L10 baseline (from ce_projection)...")
-    with open(f"{CE_DIR}/alpha_sweep.csv") as f:
+    print(f"\n[4] L10 baseline (from ce_projection seed {SEED})...")
+    l10_path = f"{CE_DIR}/seeds{SUFFIX}/alpha_sweep_seed{SEED}.csv"
+    with open(l10_path) as f:
         reader = csv.reader(f)
         l10_rows = list(reader)
     l10_mse = [float(v) for v in l10_rows[1][1:]]
@@ -179,7 +187,7 @@ def main():
         lines.append("**Verdict**: L31 patch degrades text accuracy — late layers are critical for decoding.\n")
 
     text = "\n".join(lines)
-    with open(f"{OUT_DIR}/comparison_l10_vs_l31.md", "w") as f:
+    with open(f"{OUT_DIR}/comparison_l10_vs_l31_seed{SEED}.md", "w") as f:
         f.write(text)
     print(text)
 

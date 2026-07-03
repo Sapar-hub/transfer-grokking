@@ -32,13 +32,14 @@ def generate_data(num_pairs: int, seed: int = 42):
     return inputs, labels
 
 
-def generate_all_pairs():
+def generate_all_pairs(op="add"):
     """Generate all P^2 = 9409 exhaustive (a, b) pairs.
 
     Purpose:
         Full Cartesian product of inputs for exhaustive evaluation.
     What:
-        Creates all pairs (a, b) for a,b in [0, P-1] and computes labels.
+        Creates all pairs (a, b) for a,b in [0, P-1] and computes labels
+        using the given operation.
     Why:
         Used by verify_fourier.py, train.py, train_small.py, and
         clean_test.py for full-batch probing and training.
@@ -46,7 +47,12 @@ def generate_all_pairs():
     a = torch.arange(P).repeat_interleave(P)
     b = torch.arange(P).repeat(P)
     inputs = torch.stack([a, b], dim=1)
-    labels = (a + b) % P
+    if op == "add":
+        labels = (a + b) % P
+    elif op == "multiply":
+        labels = (a * b) % P
+    else:
+        raise ValueError(f"Unknown op: {op}")
     return inputs, labels
 
 
