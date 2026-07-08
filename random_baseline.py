@@ -190,6 +190,55 @@ def train_onehot_end_to_end(X_train, y_train, X_test, y_test, lm_head_sliced,
     return W_oh, W_ce
 
 
+def train_onehot_mlp_end_to_end(X_train, y_train, X_test, y_test, lm_head_sliced,
+                                n_epochs=5000, lr=1e-3):
+    X_tr = torch.from_numpy(X_train).float()
+    y_tr = torch.from_numpy(y_train).long()
+    X_te = torch.from_numpy(X_test).float()
+    y_te = torch.from_numpy(y_test).long()
+
+    W_oh = nn.Linear(D_ONEHOT, D_SMALL, bias=True)
+    nonlinear = nn.ReLU()
+    W_ce = nn.Linear(D_SMALL, D_PHI2, bias=False)
+
+    params = list(W_oh.parameters()) + list(W_ce.parameters())
+    opt = optim.AdamW(params, lr=lr, weight_decay=1e-2)
+
+    for epoch in range(1, n_epochs + 1):
+        h = nonlinear(W_oh(X_tr))
+        projected = W_ce(h)
+        logits = projected @ lm_head_sliced.T
+        loss = F.cross_entropy(logits, y_tr)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+
+        if epoch % 500 == 0 or epoch == 1:
+            with torch.no_grad():
+                h_te = nonlinear(W_oh(X_te))
+                proj_te = W_ce(h_te)
+                logits_te = proj_te @ lm_head_sliced.T
+                val_acc = (logits_te.argmax(dim=1) == y_te).float().mean().item()
+                train_acc = (logits.argmax(dim=1) == y_tr).float().mean().item()
+            chance = np.log(P)
+            print(f"    [onehot-mlp] epoch {epoch:4d}: loss={loss.item():.6f} (chance={chance:.3f}) train={train_acc:.4f} val={val_acc:.4f}")
+            if val_acc > 0.99 and train_acc > 0.99:
+                print(f"    [onehot-mlp] Early stop at epoch {epoch} (val={val_acc:.4f})")
+                break
+
+    with torch.no_grad():
+        all_logits = W_ce(nonlinear(W_oh(X_te))) @ lm_head_sliced.T
+        preds = all_logits.argmax(dim=1)
+        unique, counts = preds.unique(return_counts=True)
+        top_k = min(10, len(unique))
+        top_idx = counts.argsort(descending=True)[:top_k]
+        top_str = ", ".join([f"{unique[i].item()}:{counts[i].item()}" for i in top_idx])
+        print(f"    [onehot-mlp] pred distribution (top-{top_k}): {top_str}")
+        print(f"    [onehot-mlp] unique classes predicted: {len(unique)} / {P}")
+
+    return W_oh, nonlinear, W_ce
+
+
 def train_random_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced,
                       n_epochs=5000, lr=1e-3):
     X_tr = torch.from_numpy(X_train).float()
@@ -376,13 +425,66 @@ def main():
         results[f"random-{rseed}"] = {"ll": ll_rand, "probe": probe_rand, "alpha": rand_row[3:]}
 
     # ==========================================
+    # Part C: One-hot MLP control
+    # ==========================================
+    print("\n" + "=" * 60)
+    print("PART C: One-hot MLP control (194→128→ReLU→2560)")
+    print("=" * 60)
+
+    print("\n[9] Training one-hot MLP → W_CE end-to-end...")
+    W_oh_mlp, nonlinear_mlp, W_ce_mlp = train_onehot_mlp_end_to_end(
+        one_hot_train, labels_train, one_hot_test, labels_test, lm_head_sliced
+    )
+
+    def logit_lens_mlp(X, y):
+        with torch.no_grad():
+            h = nonlinear_mlp(W_oh_mlp(torch.from_numpy(X).float()))
+            projected = W_ce_mlp(h)
+            logits = projected @ lm_head_sliced.T
+            acc = (logits.argmax(dim=1) == torch.from_numpy(y).long()).float().mean().item()
+        return acc
+
+    def probe_mlp(X, y):
+        with torch.no_grad():
+            h = nonlinear_mlp(W_oh_mlp(torch.from_numpy(X).float())).numpy()
+        acc, _, _ = train_probe(h, y)
+        return acc
+
+    ll_oh_mlp = logit_lens_mlp(one_hot_test, labels_test)
+    probe_oh_mlp = probe_mlp(one_hot_test, labels_test)
+    print(f"  Logit lens: {ll_oh_mlp:.4f}")
+    print(f"  Probe:      {probe_oh_mlp:.4f}")
+
+    W_ce_mlp.requires_grad_(False)
+    W_ce_mlp.eval()
+    W_oh_mlp.requires_grad_(False)
+    W_oh_mlp.eval()
+
+    mlp_adapter = nn.Sequential(W_oh_mlp, nonlinear_mlp)
+    mlp_adapter.eval()
+
+    oh_mlp_row = ["onehot-mlp", ll_oh_mlp, probe_oh_mlp]
+    if phi2 is not None:
+        print("\n[10] L31 alpha-sweep (one-hot MLP)...")
+        for alpha in ALPHAS:
+            acc = evaluate_alpha(phi2, tokenizer, eval_pairs, eval_labels,
+                                 W_ce_mlp, one_hot_eval, alpha, adapter=mlp_adapter)
+            oh_mlp_row.append(acc)
+            print(f"  alpha={alpha:.1f}: acc = {acc:.4f}")
+    else:
+        oh_mlp_row.extend([0.0] * len(ALPHAS))
+    oh_results.append(oh_mlp_row)
+
+    results["onehot-mlp"] = {"ll": ll_oh_mlp, "probe": probe_oh_mlp, "alpha": oh_mlp_row[3:]}
+
+    # ==========================================
     # Reference: grokked model (recompute for comparison)
     # ==========================================
     print("\n" + "=" * 60)
     print("REFERENCE: Grokked model W_CE")
     print("=" * 60)
 
-    print("\n[9] Loading/training W_CE from grokked activations...")
+    print("\n[11] Loading/training W_CE from grokked activations...")
     cached_w_path = f"{ARTIFACTS}/ce_projection/seeds{SUFFIX}/W_ce_seed{SEED}.pth"
     if os.path.exists(cached_w_path):
         W_ce_grokked = nn.Linear(D_SMALL, D_PHI2, bias=False)
@@ -417,7 +519,7 @@ def main():
 
     grokked_row = ["grokked", ll_grokked, probe_grokked]
     if phi2 is not None:
-        print("\n[10] L31 alpha-sweep (grokked)...")
+        print("\n[12] L31 alpha-sweep (grokked)...")
         for alpha in ALPHAS:
             acc = evaluate_alpha(phi2, tokenizer, eval_pairs, eval_labels,
                                  W_ce_grokked, eval_h_A_grokked, alpha)

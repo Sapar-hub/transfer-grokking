@@ -3,23 +3,23 @@
 ## Setup
 | Metric | Value |
 |--------|-------|
-| Samples | 2000 |
+| Samples | 200 |
 | Model | Phi-2 |
 
 ## Accuracies
 
 | Condition | Accuracy |
 |-----------|----------|
-| Addition prompt → add labels | 0.2800 |
-| Mult prompt → mult labels | 0.0500 |
-| Addition prompt → mult labels | 0.0160 |
+| Addition prompt → add labels | 0.2500 |
+| Mult prompt → mult labels | 0.0800 |
+| Addition prompt → mult labels | 0.0250 |
 
 ## Single-digit rate
 
 | Condition | Rate |
 |-----------|------|
-| Addition prompt | 0.074 |
-| Mult prompt | 0.347 |
+| Addition prompt | 0.050 |
+| Mult prompt | 0.365 |
 
 ## Interpretation
 

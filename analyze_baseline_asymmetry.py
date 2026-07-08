@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os
+import os, sys
 
 from utils import DEVICE, P
 
@@ -13,7 +13,7 @@ OUT_DIR = f"{ARTIFACTS}/baseline_analysis"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BATCH_SIZE = 256
-N_SAMPLES = 2000
+N_SAMPLES = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 2000
 
 
 def main():
