@@ -47,6 +47,10 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `eval_l31_perplexity.py` | Perplexity degradation: L31 patch on WikiText-2 |
 | `cross_model_l31.py` | Cross-model L31: W_CE + alpha sweep for Qwen2-Math |
 | `cross_model_probe.py` | Cross-model probe: probe on W_CE-injected hidden states (bypasses BPE tokenizer barrier) |
+| `random_baseline.py` | Control experiments: one-hot + random untrained network (seeds 0-4), L31 α-sweep |
+| `analyze_baseline_asymmetry.py` | Phi-2 prediction distribution for add vs mult prompts |
+| `trivial_baselines.py` | Few-shot (5-shot) + LoRA baselines |
+| `setup_phi2_cache.py` | Phi-2 model cache verification after manual download |
 
 Scripts above `ce_projection.py` are archived in `experiments/` (exploratory dead ends). Scripts from `ce_projection.py` onward represent the final successful approach.
 
@@ -114,6 +118,8 @@ Scripts skip computation if a cache file exists:
 - **Proxy fallback:** `scan_models.py` tries SOCKS5 proxy first, falls back to direct connection
 - **BPE splits numbers >9 into subword tokens** — for `phi2_targets` in `embed_patch.py`, take mean over all subword token embeddings per number, not just the first token
 - **Qwen2-Math BPE splits all numbers >9**: Qwen2-Math's tokenizer maps 87/97 numbers to subword tokens (only digits 0–9 are single tokens). This makes lm_head-based evaluation of mod arithmetic impossible (10 unique tokens for 97 classes). For cross-model experiments, verify tokenizer first.
+- **Prompt operator bug (CRITICAL):** 3 OP-aware scripts (`random_baseline.py`, `l31_patch.py`, `ce_projection.py`) hardcoded `+` in prompts. All now use `OP_SYMBOL[OP]` which is `{"add": "+", "mult": "*"}`. Addition-only scripts (`experiments/*`, `embed_patch.py`) remain unchanged. If extending OP support to a new script, use `OP_SYMBOL = {"add": "+", "mult": "*"}` instead of hardcoding.
+- **Old multiplication baseline (0.010) was contaminated:** The wrong prompt (`+` instead of `*`) was used for all α values in the mult sweep. Corrected mult α=0.5=0.660 (was ~0.370). The claim "multiplication requires stronger injection" is weakened. When reporting multiplication results, always state which prompt was used.
 
 ## Key Findings
 1. cos_sim between different-dim residual streams plateaus at ~0.30 regardless of conditioning
@@ -131,3 +137,5 @@ Scripts skip computation if a cache file exists:
 13. **L31 patch at α=1.0 catastrophically degrades general LM perplexity.** On WikiText-2 last-token loss: α=0.5 mild (+0.04), α=1.0 catastrophic (+29.87). W_CE(h_A) is unrelated to WikiText-2 context → model can't predict next token. In practice, need α < 1.0 to balance mod arithmetic accuracy vs general LM quality (L31 Degradation: α=0.5→65.88 PPL, α=1.0→5.9e14 PPL).
 14. **Cross-model comparison with Qwen2-Math invalidated by tokenizer mismatch.** Qwen2-Math's BPE splits 87/97 numbers into subword tokens → only 10 unique lm_head outputs for 97 classes. W_CE logit lens capped at 7.3% (not from absence of structure but from lm_head resolution). The hypothesis "math-pretrained LLMs resonate better with W_CE" is untestable via lm_head for models with number-splitting BPE. Per-layer probes confirm Qwen2-Math encodes no mod arithmetic structure (max=0.0276 vs random 0.0103, from scan_models.py).
 15. **Cross-model probe (bypasses tokenizer): probe on W_CE-injected L_last converges for all models.** Using LogisticRegression probe on the injected hidden state (bypasses lm_head): Phi-2 L31 probe(α=0.0)=0.7067 → probe(α=0.5)=0.9996 → probe(α=1.0)=1.0000. Qwen2-Math-1.5B L27 probe(α=0.0)=0.3174 → probe(α=0.5)=0.9848 → probe(α=1.0)=0.9993. With the full mod arithmetic template, Qwen encodes partial structure (0.32 vs scan_models' 0.0276 with "a b" template — confirming finding #10 about template sensitivity). At α=0.5 both converge to ~0.99 — W_CE dominates and model-specific differences vanish. **Hypothesis not supported**: math pretraining does not improve W_CE resonance. Phi-3-mini-4k incomplete cache — not tested (Cross-model Probe: Phi-2=0.9996, Qwen=0.9848 at α=0.5).
+16. **Control experiments: both one-hot and random network controls FAIL** to achieve any logit-lens accuracy (0.0000 across 5 seeds), while the grokked model achieves 1.0. This closes the most critical critique (any linearly separable signal works). Random network multi-seed L31 α-sweep: α=0.5→0.07-0.105, α=1.0→0.000 (consistent). One-hot diagnostic confirms gradient flows (loss ln(97)→3.86) and no mode collapse (65/97 classes) — the 194→128 bottleneck genuinely cannot encode Fourier structure (Random Baseline: seeds 0-4, one-hot → 0.0000 grokked → 1.0000).
+17. **Multiplication baseline bug: the entire multiplication α-sweep used `+` prompt.** Wrong operator symbol for all α values, not just α=0.0. Corrected multiplication α=0.5=0.660 (was ~0.370), nearly matching addition's 0.705. The claim "multiplication requires stronger injection" is significantly weakened. Fix centralized in `OP_SYMBOL[OP]` pattern (Prompt Operator Bug: 3 files fixed, 14 addition-only files left as-is).

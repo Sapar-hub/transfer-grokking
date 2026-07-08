@@ -12,6 +12,7 @@ CE_DIR = f"{ARTIFACTS}/ce_projection"
 SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 42
 OP = sys.argv[2] if len(sys.argv) > 2 else "add"
 SUFFIX = "" if OP == "add" else "_mult"
+OP_SYMBOL = {"add": "+", "mult": "*"}
 
 OUT_DIR = f"{ARTIFACTS}/l31_patch{SUFFIX}"
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -62,7 +63,7 @@ def evaluate_alpha(model, tokenizer, test_pairs, labels, W, h_A_test, alpha, bat
     for start in range(0, len(test_pairs), batch_size):
         batch_pairs = test_pairs[start:start + batch_size]
         batch_h_A = h_A_test[start:start + batch_size]
-        prompts = [f"# ({a} + {b}) % 97 =" for a, b in batch_pairs]
+        prompts = [f"# ({a} {OP_SYMBOL[OP]} {b}) % 97 =" for a, b in batch_pairs]
         tokenized = tokenizer(prompts, padding=True, return_tensors="pt")
         if alpha == 0.0:
             with torch.no_grad():

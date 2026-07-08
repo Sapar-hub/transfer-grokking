@@ -18,6 +18,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 42
 OP = sys.argv[2] if len(sys.argv) > 2 else "add"
 SUFFIX = "" if OP == "add" else "_mult"
+OP_SYMBOL = {"add": "+", "mult": "*"}
 SEED_DIR = f"{OUT_DIR}/seeds{SUFFIX}"
 os.makedirs(SEED_DIR, exist_ok=True)
 
@@ -62,7 +63,7 @@ def collect_phi2_activations(tokenizer, model, inputs_list):
     print(f"[collect] Processing {len(inputs_list)} prompts at L{LAYER}...")
     for start in range(0, len(inputs_list), BATCH_SIZE):
         batch = inputs_list[start:start + BATCH_SIZE]
-        prompts = [f"# ({a} + {b}) % 97 =" for a, b in batch]
+        prompts = [f"# ({a} {OP_SYMBOL[OP]} {b}) % 97 =" for a, b in batch]
         tokenized = tokenizer(prompts, padding=True, return_tensors="pt")
         current_mask = tokenized.attention_mask
         with torch.no_grad():
@@ -238,7 +239,7 @@ def evaluate_alpha(model, tokenizer, test_pairs, labels, W, h_A_test, alpha, lay
     for start in range(0, len(test_pairs), batch_size):
         batch_pairs = test_pairs[start:start + batch_size]
         batch_h_A = h_A_test[start:start + batch_size]
-        prompts = [f"# ({a} + {b}) % 97 =" for a, b in batch_pairs]
+        prompts = [f"# ({a} {OP_SYMBOL[OP]} {b}) % 97 =" for a, b in batch_pairs]
         tokenized = tokenizer(prompts, padding=True, return_tensors="pt")
         if alpha == 0.0:
             with torch.no_grad():

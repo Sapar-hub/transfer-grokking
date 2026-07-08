@@ -19,6 +19,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 42
 OP = sys.argv[2] if len(sys.argv) > 2 else "add"
 SUFFIX = "" if OP == "add" else "_mult"
+OP_SYMBOL = {"add": "+", "mult": "*"}
 PARTIAL = "--partial" in sys.argv  # skip L31 patch, logit-lens + probe only
 
 D_SMALL = 128
@@ -92,7 +93,7 @@ def evaluate_alpha(model, tokenizer, test_pairs, labels, W, h_A_test, alpha,
     for start in range(0, len(test_pairs), batch_size):
         batch_pairs = test_pairs[start:start + batch_size]
         batch_h_A = h_A_test[start:start + batch_size]
-        prompts = [f"# ({a} + {b}) % 97 =" for a, b in batch_pairs]
+        prompts = [f"# ({a} {OP_SYMBOL[OP]} {b}) % 97 =" for a, b in batch_pairs]
         tokenized = tokenizer(prompts, padding=True, return_tensors="pt")
         if alpha == 0.0:
             with torch.no_grad():
@@ -169,11 +170,22 @@ def train_onehot_end_to_end(X_train, y_train, X_test, y_test, lm_head_sliced,
                 logits_te = proj_te @ lm_head_sliced.T
                 val_acc = (logits_te.argmax(dim=1) == y_te).float().mean().item()
                 train_acc = (logits.argmax(dim=1) == y_tr).float().mean().item()
-            if val_acc > 0.01 or epoch <= 1000 or epoch % 5000 == 0:
-                print(f"    [onehot] epoch {epoch:4d}: loss={loss.item():.6f} train={train_acc:.4f} val={val_acc:.4f}")
+            chance = np.log(P)
+            print(f"    [onehot] epoch {epoch:4d}: loss={loss.item():.6f} (chance={chance:.3f}) train={train_acc:.4f} val={val_acc:.4f}")
             if val_acc > 0.99 and train_acc > 0.99:
                 print(f"    [onehot] Early stop at epoch {epoch} (val={val_acc:.4f})")
                 break
+
+    # Mode collapse check
+    with torch.no_grad():
+        all_logits = W_ce(W_oh(X_te)) @ lm_head_sliced.T
+        preds = all_logits.argmax(dim=1)
+        unique, counts = preds.unique(return_counts=True)
+        top_k = min(10, len(unique))
+        top_idx = counts.argsort(descending=True)[:top_k]
+        top_str = ", ".join([f"{unique[i].item()}:{counts[i].item()}" for i in top_idx])
+        print(f"    [onehot] pred distribution (top-{top_k}): {top_str}")
+        print(f"    [onehot] unique classes predicted: {len(unique)} / {P}")
 
     return W_oh, W_ce
 
@@ -325,7 +337,7 @@ def main():
     print("PART B: Random untrained network control")
     print("=" * 60)
 
-    rand_seeds = [0]  # start with one, expand if needed
+    rand_seeds = list(range(5))
     for rseed in rand_seeds:
         print(f"\n--- Random seed {rseed} ---")
 
@@ -370,15 +382,35 @@ def main():
     print("REFERENCE: Grokked model W_CE")
     print("=" * 60)
 
-    print("\n[9] Training W_CE from grokked activations...")
-    W_ce_grokked = train_random_W_ce(
-        small_train, labels_train, small_test, labels_test, lm_head_sliced
-    )
+    print("\n[9] Loading/training W_CE from grokked activations...")
+    cached_w_path = f"{ARTIFACTS}/ce_projection/seeds{SUFFIX}/W_ce_seed{SEED}.pth"
+    if os.path.exists(cached_w_path):
+        W_ce_grokked = nn.Linear(D_SMALL, D_PHI2, bias=False)
+        W_ce_grokked.load_state_dict(torch.load(cached_w_path, map_location=DEVICE, weights_only=True))
+        print(f"  Loaded cached W_ce from {cached_w_path}")
+    else:
+        W_ce_grokked = train_random_W_ce(
+            small_train, labels_train, small_test, labels_test, lm_head_sliced,
+            n_epochs=2000
+        )
 
     ll_grokked = logit_lens_accuracy(W_ce_grokked, small_test, labels_test, lm_head_sliced)
     probe_grokked = probe_accuracy(W_ce_grokked, small_test, labels_test)
     print(f"  Logit lens: {ll_grokked:.4f}")
     print(f"  Probe:      {probe_grokked:.4f}")
+
+    # Mode collapse check (grokked reference)
+    with torch.no_grad():
+        X_te = torch.from_numpy(small_test).float()
+        y_te = torch.from_numpy(labels_test).long()
+        all_logits = W_ce_grokked(X_te) @ lm_head_sliced.T
+        preds = all_logits.argmax(dim=1)
+        unique, counts = preds.unique(return_counts=True)
+        top_k = min(10, len(unique))
+        top_idx = counts.argsort(descending=True)[:top_k]
+        top_str = ", ".join([f"{unique[i].item()}:{counts[i].item()}" for i in top_idx])
+        print(f"    [grokked] pred distribution (top-{top_k}): {top_str}")
+        print(f"    [grokked] unique classes predicted: {len(unique)} / {P}")
 
     W_ce_grokked.requires_grad_(False)
     W_ce_grokked.eval()
