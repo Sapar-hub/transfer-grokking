@@ -1,4 +1,6 @@
 __pycache__/
+.venv/
+.mypy_cache/
 *.egg-info/
 logs/
 pipeline.log
