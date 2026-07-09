@@ -449,7 +449,7 @@ def main():
     model_b.eval()
 
     W = nn.Linear(CFG_SMALL['d_model'], CFG_BIG['d_model'], bias=False)
-    W.load_state_dict(torch.load(f"{PROJ_DIR}/W.pth", map_location=DEVICE))
+    W.load_state_dict(torch.load(f"{PROJ_DIR}/W_seed42.pth", map_location=DEVICE))
     W.eval()
     print(f"\nLoaded W: {CFG_SMALL['d_model']}->{CFG_BIG['d_model']} (from A[last]->B[last])")
 

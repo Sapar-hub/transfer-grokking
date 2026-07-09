@@ -684,8 +684,11 @@ def main():
         )
     elif ll_oh_val < 0.1 and ll_rand_val < 0.1:
         interpretation.append(
-            "Both controls fail — grokked Fourier structure is essential. "
-            "This strengthens the paper's central claim."
+            "Both controls fail — only the grokked model's structured activations "
+            "(which include circular Fourier features) enable CE projection. "
+            "This is consistent with the Fourier hypothesis but does not isolate "
+            "Fourier structure as the sole causal factor: one-hot adds a trainable "
+            "bottleneck, and random activations lack all structure."
         )
     else:
         interpretation.append(

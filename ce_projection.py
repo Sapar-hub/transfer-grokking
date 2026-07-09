@@ -136,7 +136,7 @@ def train_W_mse(X_train, X_test, Y_train, Y_test):
     return W, cos_sims[-1]
 
 
-def train_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced):
+def train_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced, final_layernorm=None):
     path_w = f"{SEED_DIR}/W_ce_seed{SEED}.pth"
     path_csv = f"{SEED_DIR}/ce_training_log_seed{SEED}.csv"
     if os.path.exists(path_w):
@@ -153,10 +153,13 @@ def train_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced):
     W = nn.Linear(D_SMALL, D_PHI2, bias=False)
     opt = optim.AdamW(W.parameters(), lr=LR, weight_decay=1e-2)
 
+    def apply_ln(x):
+        return final_layernorm(x) if final_layernorm is not None else x
+
     log_data = []
     for epoch in range(1, N_EPOCHS + 1):
         projected = W(X_tr)
-        logits = projected @ lm_head_sliced.T
+        logits = apply_ln(projected) @ lm_head_sliced.T
         loss = F.cross_entropy(logits, y_tr)
         opt.zero_grad()
         loss.backward()
@@ -165,7 +168,7 @@ def train_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced):
         if epoch % 500 == 0 or epoch == 1:
             with torch.no_grad():
                 p_te = W(X_te)
-                logits_te = p_te @ lm_head_sliced.T
+                logits_te = apply_ln(p_te) @ lm_head_sliced.T
                 val_acc = (logits_te.argmax(dim=1) == y_te).float().mean().item()
                 train_acc = (logits.argmax(dim=1) == y_tr).float().mean().item()
             log_data.append((epoch, loss.item(), train_acc, val_acc))
@@ -192,10 +195,11 @@ def train_W_ce(X_train, y_train, X_test, y_test, lm_head_sliced):
     return W
 
 
-def logit_lens_accuracy(W, X_test, y_test, lm_head_sliced):
+def logit_lens_accuracy(W, X_test, y_test, lm_head_sliced, final_layernorm=None):
     with torch.no_grad():
         projected = W(torch.from_numpy(X_test).float())
-        logits = projected @ lm_head_sliced.T
+        h = final_layernorm(projected) if final_layernorm is not None else projected
+        logits = h @ lm_head_sliced.T
         acc = (logits.argmax(dim=1) == torch.from_numpy(y_test).long()).float().mean().item()
     return acc
 
@@ -293,6 +297,7 @@ def main():
 
     number_ids = [tokenizer.encode(str(n))[0] for n in range(P)]
     lm_head_sliced = phi2.lm_head.weight[number_ids].detach()
+    final_layernorm = phi2.model.final_layernorm
 
     print(f"\n[2] Collecting Phi-2 L{LAYER} activations...")
     inputs_all = [(int(i // P), int(i % P)) for i in range(P * P)]
@@ -300,11 +305,22 @@ def main():
     phi2_train = phi2_acts[train_idx]
     phi2_test = phi2_acts[test_idx]
 
+    # Remove stale W_CE caches (layernorm-in-training changed in fix #5; old weights invalid)
+    for stale in [f"W_ce_seed{SEED}.pth", f"ce_training_log_seed{SEED}.csv", f"alpha_sweep_seed{SEED}.csv"]:
+        stale_path = f"{SEED_DIR}/{stale}"
+        if os.path.exists(stale_path):
+            os.remove(stale_path)
+            print(f"  [clean] Removed stale {stale}")
+
     print(f"\n[3] Training W_MSE (baseline, L{LAYER} targets)...")
     W_mse, cos_mse = train_W_mse(small_train, small_test, phi2_train, phi2_test)
 
-    print(f"\n[4] Training W_CE (via frozen lm_head, no layernorm)...")
-    W_ce = train_W_ce(small_train, labels_train, small_test, labels_test, lm_head_sliced)
+    print(f"\n[4] Training W_CE (via frozen lm_head with final_layernorm)...")
+    W_ce = train_W_ce(small_train, labels_train, small_test, labels_test, lm_head_sliced, final_layernorm)
+
+    # Save metadata for cache validation across scripts
+    metadata = {"LAYER": LAYER, "ALPHAS": list(ALPHAS), "N_EPOCHS": N_EPOCHS, "LR": LR, "SEED": SEED, "OP": OP}
+    torch.save(metadata, f"{SEED_DIR}/metadata_seed{SEED}.pt")
 
     # Save reference copies for seed=42 addition back-compat
     if SEED == 42 and OP == "add":
@@ -315,7 +331,7 @@ def main():
 
     print(f"\n[5] Logit lens comparison...")
     ll_mse = logit_lens_accuracy(W_mse, small_test, labels_test, lm_head_sliced)
-    ll_ce = logit_lens_accuracy(W_ce, small_test, labels_test, lm_head_sliced)
+    ll_ce = logit_lens_accuracy(W_ce, small_test, labels_test, lm_head_sliced, final_layernorm)
     print(f"  W_MSE logit lens: {ll_mse:.4f}")
     print(f"  W_CE  logit lens: {ll_ce:.4f}")
 
@@ -360,7 +376,7 @@ def main():
     lines.append(f"| Seed | {SEED} |")
     lines.append(f"| D_small → D_phi2 | {D_SMALL} → {D_PHI2} |")
     lines.append(f"| Train / Test | 6586 / 2823 |")
-    lines.append(f"| W_CE loss | CE through frozen lm_head (no layernorm) |")
+    lines.append(f"| W_CE loss | CE through frozen lm_head + final_layernorm |")
     lines.append(f"| W_MSE loss | MSE + 0.01 × ortho |")
     lines.append(f"| Epochs | {N_EPOCHS} |")
     lines.append(f"| Optimizer | AdamW lr={LR} |\n")

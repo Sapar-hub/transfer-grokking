@@ -61,20 +61,20 @@ def load_model():
 
 def check_tokenizer(tokenizer):
     print("\n--- Tokenizer check: numbers 0-96 ---")
-    multi = 0
+    number_token_ids = [tokenizer.encode(str(n)) for n in range(P)]
+    multi = sum(1 for ids in number_token_ids if len(ids) > 1)
     for n in range(P):
-        ids = tokenizer.encode(str(n))
-        status = "OK" if len(ids) == 1 else f"MULTI({len(ids)})"
-        if len(ids) > 1:
-            multi += 1
-            if multi <= 5:
-                print(f"  {n:2d}: {ids}  <- multi-token")
+        ids = number_token_ids[n]
+        if len(ids) > 1 and n < 5:
+            print(f"  {n:2d}: {ids}  <- multi-token")
     print(f"  Multi-token numbers: {multi}/{P}")
     print(f"  All numbers encoded as single tokens: {multi == 0}")
-    number_ids = [tokenizer.encode(str(n))[0] for n in range(P)]
-    print(f"  Token ID range: [{min(number_ids)}, {max(number_ids)}]")
-    print(f"  Unique token IDs: {len(set(number_ids))} / {P}")
-    return number_ids
+    first_ids = [ids[0] for ids in number_token_ids]
+    print(f"  Token ID range: [{min(first_ids)}, {max(first_ids)}]")
+    print(f"  Unique first tokens: {len(set(first_ids))} / {P}")
+    if multi > 0:
+        print(f"  WARNING: {multi}/{P} numbers multi-token — using mean-pool over subword embeddings")
+    return number_token_ids
 
 
 def collect_target_activations(tokenizer, model):
@@ -183,7 +183,7 @@ def make_patch_hook(W, h_A_batch, attention_mask=None, alpha=1.0):
     return hook
 
 
-def evaluate_alpha(model, tokenizer, test_pairs, labels, W, h_A_test, alpha, number_ids, layer, batch_size=32):
+def evaluate_alpha(model, tokenizer, test_pairs, labels, W, h_A_test, alpha, number_token_ids, layer, batch_size=32):
     correct = 0
     total = 0
     for start in range(0, len(test_pairs), batch_size):
@@ -202,7 +202,7 @@ def evaluate_alpha(model, tokenizer, test_pairs, labels, W, h_A_test, alpha, num
             handle.remove()
         logits = outputs.logits[:, -1, :]
         for i in range(len(batch_pairs)):
-            pred = max(range(P), key=lambda n: logits[i, number_ids[n]].item())
+            pred = max(range(P), key=lambda n: logits[i, number_token_ids[n]].mean().item())
             if pred == labels[start + i]:
                 correct += 1
             total += 1
@@ -235,14 +235,16 @@ def main():
     print(f"  {TARGET}: {TARGET_N_LAYERS} layers, d_model={TARGET_D_MODEL}")
 
     print(f"\n[1b] Tokenizer check...")
-    number_ids = check_tokenizer(tokenizer)
+    number_token_ids = check_tokenizer(tokenizer)
 
     print(f"\n[2] Collecting {TARGET} L{TARGET_LAYER} activations...")
     target_acts = collect_target_activations(tokenizer, model)
     target_train = target_acts[train_idx]
     target_test = target_acts[test_idx]
 
-    lm_head_sliced = model.lm_head.weight[number_ids].detach()
+    lm_head_sliced = torch.stack([
+        model.lm_head.weight[ids].mean(dim=0).detach() for ids in number_token_ids
+    ])
 
     print(f"\n[3] Training W_CE (128 -> {TARGET_D_MODEL}) via frozen lm_head...")
     W_ce = train_W_ce(small_train, labels_train, small_test, labels_test, lm_head_sliced)
@@ -257,7 +259,7 @@ def main():
     results = []
     for alpha in ALPHAS:
         acc = evaluate_alpha(model, tokenizer, eval_pairs, eval_labels,
-                             W_ce, eval_h_A, alpha, number_ids, TARGET_LAYER)
+                             W_ce, eval_h_A, alpha, number_token_ids, TARGET_LAYER)
         results.append((alpha, acc))
         print(f"  alpha={alpha:.1f}: text_acc = {acc:.4f}")
 
@@ -269,7 +271,7 @@ def main():
     print(f"  Saved: {path}")
 
     print(f"\n[6] Comparison with Phi-2 L31...")
-    phi2_path = f"{ARTIFACTS}/l31_patch/alpha_sweep_l31.csv"
+    phi2_path = f"{ARTIFACTS}/l31_patch/alpha_sweep_l31_seed42.csv"
     with open(phi2_path) as f:
         reader = csv.reader(f)
         phi2_rows = list(reader)

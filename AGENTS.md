@@ -52,7 +52,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `trivial_baselines.py` | Few-shot (5-shot) + LoRA baselines |
 | `setup_phi2_cache.py` | Phi-2 model cache verification after manual download |
 
-Scripts above `ce_projection.py` are archived in `experiments/` (exploratory dead ends). Scripts from `ce_projection.py` onward represent the final successful approach.
+Scripts above `ce_projection.py` are primarily in `experiments/` (exploratory dead ends). Core training scripts (`train_small.py`, `train.py`, `clean_test.py`, etc.) remain at root level. Scripts from `ce_projection.py` onward represent the final successful approach.
 
 ## Commands
 ```bash
@@ -85,7 +85,10 @@ Scripts skip computation if a cache file exists:
 | `train.py` | `artifacts/big/best_model.pth` | `clean_test.py`, `experiments/line_a.py` |
 | `clean_test.py` | `artifacts/activations/small_acts_test.npy` | `experiments/line_a.py`, `experiments/line_b.py` |
 | `clean_test.py` | `artifacts/activations/big_acts_test.npy` | `experiments/line_a.py` |
-| `clean_test.py` | `artifacts/projection/W.pth` | `experiments/line_a.py`, `experiments/line_b.py` |
+| `clean_test.py` | `artifacts/activations/small_acts_train.npy` | `clean_test.py` (train_W) |
+| `clean_test.py` | `artifacts/activations/big_acts_train.npy` | `clean_test.py` (train_W) |
+| `clean_test.py` | `artifacts/activations/small_labels_train.npy` | `clean_test.py` (train_W) |
+| `clean_test.py` | `artifacts/projection/W_seed{N}.pth` | `experiments/line_a.py`, `experiments/line_b.py` |
 | `clean_test.py` | `artifacts/steering/steering_vec.npy` | `experiments/line_a.py` |
 | `experiment_a.py` | `artifacts/experiment_a/projection_W.pth` | itself (cache) |
 | `experiment_a.py` | `artifacts/experiment_a/phi2_layer30_activations.npy` | itself (cache) |
@@ -99,9 +102,9 @@ Scripts skip computation if a cache file exists:
 | `ce_projection.py` | `artifacts/ce_projection/phi2_L10_acts.npy` | itself (cache) |
 | `ce_projection.py` | `artifacts/ce_projection/W_mse.pth` | itself (cache) |
 | `ce_projection.py` | `artifacts/ce_projection/W_ce.pth` | itself (cache) |
-| `l31_patch.py` | `artifacts/l31_patch/alpha_sweep_l31.csv` | itself (cache) |
-| `l31_patch.py` | `artifacts/l31_patch/comparison_l10_vs_l31.md` | itself (cache) |
-| `eval_l31_perplexity.py` | `artifacts/l31_patch/perplexity_sweep.csv` | itself (cache) |
+| `l31_patch.py` | `artifacts/l31_patch/alpha_sweep_l31_seed{N}.csv` | itself (cache) |
+| `l31_patch.py` | `artifacts/l31_patch/comparison_l10_vs_l31_seed{N}.md` | itself (cache) |
+| `eval_l31_perplexity.py` | `artifacts/l31_patch/perplexity_sweep_seed{N}.csv` | itself (cache) |
 | `cross_model_l31.py` | `artifacts/cross_model/W_ce_qwen2_math_1.5b.pth` | itself (cache) |
 | `cross_model_l31.py` | `artifacts/cross_model/qwen2_math_1.5b_L27_acts.npy` | itself (cache) |
 | `cross_model_l31.py` | `artifacts/cross_model/comparison_qwen2_math_1.5b_vs_phi2.md` | itself (cache) |

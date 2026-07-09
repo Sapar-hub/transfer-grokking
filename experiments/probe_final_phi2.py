@@ -162,7 +162,13 @@ def main():
     results["C: phi2_L31→97"] = train_linear(h_phi2, labels, "C: phi2_L31→97", D_PHI2)
 
     print("\n[5] Summary")
-    natural_best = 0.0446
+    natural_best_path = f"{BASE}/natural_adapter/adapter_acc_L30.txt"
+    if os.path.exists(natural_best_path):
+        with open(natural_best_path) as f:
+            natural_best = float(f.read().strip())
+    else:
+        natural_best = 0.0
+        print("  [WARN] natural_adapter L30 results not found")
     lines = []
     lines.append("# Probe Final Phi-2: Linear on L31 (single template)\n")
     lines.append("## Parameters\n")

@@ -37,7 +37,7 @@ def compute_projected_acts():
         0.94 suggests partial geometry transfer.
     """
     W = nn.Linear(CFG_SMALL['d_model'], CFG_BIG['d_model'], bias=False)
-    W.load_state_dict(torch.load(f"{PROJ_DIR}/W.pth", map_location=DEVICE))
+    W.load_state_dict(torch.load(f"{PROJ_DIR}/W_seed42.pth", map_location=DEVICE))
     W.requires_grad_(False)
 
     small_acts = np.load(f"{ACT_DIR}/small_acts_test.npy")

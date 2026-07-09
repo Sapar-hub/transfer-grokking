@@ -79,11 +79,14 @@ def get_model_info(model):
 
 
 def check_tokenizer(tokenizer, name):
-    multi = sum(1 for n in range(P) if len(tokenizer.encode(str(n))) > 1)
-    number_ids = [tokenizer.encode(str(n))[0] for n in range(P)]
-    uniq = len(set(number_ids))
+    number_token_ids = [tokenizer.encode(str(n)) for n in range(P)]
+    multi = sum(1 for ids in number_token_ids if len(ids) > 1)
+    first_ids = [ids[0] for ids in number_token_ids]
+    uniq = len(set(first_ids))
     print(f"  Tokenizer: {multi}/{P} numbers multi-token, {uniq}/{P} unique first tokens")
-    return number_ids
+    if multi > 0:
+        print(f"  WARNING: Mean-pooling subword embeddings for {name}'s lm_head_sliced")
+    return number_token_ids
 
 
 def collect_clean_activations(tokenizer, model, layer):
@@ -220,14 +223,15 @@ def collect_patched_for_probe(tokenizer, model, layer, W, h_A_all, alpha, name):
 
 
 def train_probe(X, y):
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
     X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=0.3, random_state=42
+        X, y, test_size=0.3, random_state=42
     )
+    scaler = StandardScaler()
+    X_train_s = scaler.fit_transform(X_train)
+    X_test_s = scaler.transform(X_test)
     probe = LogisticRegression(max_iter=2000, solver='lbfgs', C=1.0, random_state=42)
-    probe.fit(X_train, y_train)
-    acc = probe.score(X_test, y_test)
+    probe.fit(X_train_s, y_train)
+    acc = probe.score(X_test_s, y_test)
     return acc
 
 
@@ -241,13 +245,15 @@ def process_model(name, hf_name, small_acts, labels, train_idx, test_idx):
     last_layer = n_layers - 1
     print(f"  Architecture: {n_layers} layers, d_model={d_model}, last_layer=L{last_layer}")
 
-    number_ids = check_tokenizer(tokenizer, name)
+    number_token_ids = check_tokenizer(tokenizer, name)
 
     print(f"\n  [1] Collecting clean L{last_layer} activations...")
     clean_acts = collect_clean_activations(tokenizer, model, last_layer)
 
     print(f"\n  [2] Training/loading W_CE...")
-    lm_head_sliced = model.lm_head.weight[number_ids].detach()
+    lm_head_sliced = torch.stack([
+        model.lm_head.weight[ids].mean(dim=0).detach() for ids in number_token_ids
+    ])
     small_train = small_acts[train_idx]
     small_test = small_acts[test_idx]
     labels_train = labels[train_idx]
@@ -287,7 +293,7 @@ def process_model(name, hf_name, small_acts, labels, train_idx, test_idx):
         "last_layer": last_layer,
         "logit_lens": ll_acc,
         "probe_results": results,
-        "unique_tokens": len(set(number_ids)),
+        "unique_tokens": P if all(len(ids) >= 1 for ids in number_token_ids) else 0,
     }
 
 

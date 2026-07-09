@@ -137,12 +137,31 @@ def main():
         w.writerows(results)
 
     print(f"\n[4] L10 baseline (from ce_projection seed {SEED})...")
+    # Validate metadata before loading L10 CSV
+    meta_path = f"{CE_DIR}/seeds{SUFFIX}/metadata_seed{SEED}.pt"
+    if os.path.exists(meta_path):
+        meta = torch.load(meta_path, weights_only=True)
+        if meta.get("LAYER", 0) != 10:
+            print(f"  [WARN] metadata LAYER={meta['LAYER']}, expected 10")
+        if meta.get("ALPHAS") != ALPHAS:
+            print(f"  [WARN] metadata ALPHAS={meta['ALPHAS']}, expected {ALPHAS}")
+    else:
+        print(f"  [WARN] No metadata file — cannot validate CE training params")
+
     l10_path = f"{CE_DIR}/seeds{SUFFIX}/alpha_sweep_seed{SEED}.csv"
     with open(l10_path) as f:
         reader = csv.reader(f)
         l10_rows = list(reader)
+    if len(l10_rows) < 3:
+        raise ValueError(f"CSV {l10_path} has {len(l10_rows)} rows, expected >= 3")
+    if l10_rows[1][0] not in ("MSE", "W_MSE"):
+        print(f"  [WARN] Expected row[1] label 'MSE'/'W_MSE', got '{l10_rows[1][0]}'")
+    if l10_rows[2][0] not in ("CE", "W_CE"):
+        print(f"  [WARN] Expected row[2] label 'CE'/'W_CE', got '{l10_rows[2][0]}'")
     l10_mse = [float(v) for v in l10_rows[1][1:]]
     l10_ce = [float(v) for v in l10_rows[2][1:]]
+    if len(l10_mse) != len(ALPHAS):
+        print(f"  [WARN] CSV has {len(l10_mse)} alphas, expected {len(ALPHAS)}")
     baseline = l10_mse[0]
 
     l31_mse = [float(v) for v in results[0][1:]]

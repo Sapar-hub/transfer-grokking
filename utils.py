@@ -70,17 +70,18 @@ def train_probe(X, y, test_size=0.3, C=1.0, max_iter=1000):
         encoding across all experiments. A probe acc >> 1/P (~0.01)
         indicates the model encodes class information at that layer.
     """
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
     X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y, test_size=test_size, random_state=42
+        X, y, test_size=test_size, random_state=42
     )
+    scaler = StandardScaler()
+    X_train_s = scaler.fit_transform(X_train)
+    X_test_s = scaler.transform(X_test)
     probe = LogisticRegression(
         max_iter=max_iter,
         solver='lbfgs', C=C, random_state=42
     )
-    probe.fit(X_train, y_train)
-    acc = probe.score(X_test, y_test)
+    probe.fit(X_train_s, y_train)
+    acc = probe.score(X_test_s, y_test)
     return acc, probe, scaler
 
 

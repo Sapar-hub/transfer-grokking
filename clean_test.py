@@ -25,6 +25,7 @@ for d in [ACT_DIR, PROBE_DIR, PROJ_DIR, STEER_DIR]:
 D_SMALL = CFG_SMALL["d_model"]
 D_BIG = CFG_BIG["d_model"]
 BATCH_SIZE = 256
+SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 42
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────
@@ -49,12 +50,12 @@ def get_train_test_split():
 
 # ─── Step 3: Extract activations ─────────────────────────────────────
 
-def extract_activations(model, cfg, pairs_idx, label="model"):
+def extract_activations(model, cfg, pairs_idx, label="model", split="test"):
     """Extract per-layer residual stream activations on a subset of pairs.
 
     Purpose:
         Cache activations for a given model on specified (train/test) pairs.
-        Saves to artifacts/activations/{name}_acts_test.npy and labels.
+        Saves to artifacts/activations/{name}_acts_{split}.npy and labels.
     What:
         Runs model with return_activations=True on pairs_idx, collects
         blocks.l.hook_resid_post for all layers at position 1 (answer
@@ -64,8 +65,8 @@ def extract_activations(model, cfg, pairs_idx, label="model"):
         avoids re-extraction. The 2-layer (A) or 6-layer (B) structure
         enables per-layer probing and CCA alignment analysis.
     """
-    path = f"{ACT_DIR}/{cfg['name']}_acts_test.npy"
-    lbl_path = f"{ACT_DIR}/{cfg['name']}_labels_test.npy"
+    path = f"{ACT_DIR}/{cfg['name']}_acts_{split}.npy"
+    lbl_path = f"{ACT_DIR}/{cfg['name']}_labels_{split}.npy"
     if os.path.exists(path) and os.path.exists(lbl_path):
         print(f"  [{label}] Loading cached activations...")
         return np.load(path), np.load(lbl_path)
@@ -149,7 +150,7 @@ def plot_probe_comparison(small_accs, big_accs):
 
 # ─── Step 5: Train W ──────────────────────────────────────────────────
 
-def train_W(small_acts_train, big_acts_train, small_acts_test, big_acts_test):
+def train_W(small_acts_train, big_acts_train, small_acts_test, big_acts_test, seed=42):
     """Train linear projection W: 128 -> 512 via MSE.
 
     Purpose:
@@ -159,16 +160,16 @@ def train_W(small_acts_train, big_acts_train, small_acts_test, big_acts_test):
     What:
         Trains nn.Linear(128, 512) with MSELoss on the last-layer
         activations of A and B, monitors test cos_sim.
-        Caches W to artifacts/projection/W.pth.
+        Caches W to artifacts/projection/W_seed{N}.pth.
     Why:
         This is the core of the Clean Experiment: eliminating the tokenizer
         confound to measure intrinsic geometry compatibility. The result
         (cos_sim = 0.30, probe = 0.94) shows partial linear separability
         transfer but no directional geometry preservation.
     """
-    path_w = f"{PROJ_DIR}/W.pth"
-    path_curve = f"{PROJ_DIR}/training_curve.png"
-    path_cos = f"{PROJ_DIR}/cos_sim_test.npy"
+    path_w = f"{PROJ_DIR}/W_seed{seed}.pth"
+    path_curve = f"{PROJ_DIR}/training_curve_seed{seed}.png"
+    path_cos = f"{PROJ_DIR}/cos_sim_test_seed{seed}.npy"
 
     if os.path.exists(path_w) and os.path.exists(path_cos):
         W = nn.Linear(D_SMALL, D_BIG, bias=False)
@@ -182,6 +183,7 @@ def train_W(small_acts_train, big_acts_train, small_acts_test, big_acts_test):
     X_te = torch.from_numpy(small_acts_test).float()
     Y_te = torch.from_numpy(big_acts_test).float()
 
+    torch.manual_seed(seed)
     W = nn.Linear(D_SMALL, D_BIG, bias=False)
     opt = optim.AdamW(W.parameters(), lr=1e-3)
     loss_fn = nn.MSELoss()
@@ -223,7 +225,7 @@ def train_W(small_acts_train, big_acts_train, small_acts_test, big_acts_test):
 
 # ─── Step 6: Projected probe ──────────────────────────────────────────
 
-def verify_geometry(W, small_acts_test, labels_test):
+def verify_geometry(W, small_acts_test, labels_test, seed=42):
     """Train a probe on W(A_acts) to measure geometry preservation.
 
     Purpose:
@@ -242,7 +244,7 @@ def verify_geometry(W, small_acts_test, labels_test):
     acc, *_ = train_probe(proj, labels_test)
     print(f"  [verify] Projected probe acc = {acc:.4f}")
 
-    with open(f"{PROJ_DIR}/projected_probe_acc.txt", "w") as f:
+    with open(f"{PROJ_DIR}/projected_probe_acc_seed{seed}.txt", "w") as f:
         f.write(f"projected_probe_acc: {acc:.4f}\n")
     return acc
 
@@ -434,7 +436,7 @@ def write_summary(probe_small, probe_big, cos_test, proj_probe_acc, steer_result
         verdict = "Mixed result."
     lines.append(f"## Verdict\n{verdict}\n")
 
-    with open(f"{STEER_DIR}/summary.md", "w") as f:
+    with open(f"{STEER_DIR}/summary_seed{SEED}.md", "w") as f:
         f.write("\n".join(lines))
     print("\n".join(lines))
 
@@ -469,6 +471,12 @@ def main():
     train_idx, test_idx = get_train_test_split()
     print(f"\nSplit: {len(train_idx)} train, {len(test_idx)} test pairs")
 
+    # Remove stale caches (old format without split suffix) to force clean re-extraction
+    for fname in os.listdir(ACT_DIR):
+        if fname.endswith("_acts_test.npy") or fname.endswith("_labels_test.npy"):
+            os.remove(os.path.join(ACT_DIR, fname))
+            print(f"  Removed stale cache: {fname}")
+
     model_a = make_model(CFG_SMALL).to(DEVICE)
     model_a.load_state_dict(torch.load(f"{SMALL_DIR}/best_model.pth", map_location=DEVICE))
     model_a.eval()
@@ -480,17 +488,13 @@ def main():
 
     # Step 3: extract activations on test pairs
     print("\n[Step 3] Extracting test activations...")
-    small_acts_test, labels_test = extract_activations(model_a, CFG_SMALL, test_idx, "A")
-    big_acts_test, _ = extract_activations(model_b, CFG_BIG, test_idx, "B")
+    small_acts_test, labels_test = extract_activations(model_a, CFG_SMALL, test_idx, "A", "test")
+    big_acts_test, _ = extract_activations(model_b, CFG_BIG, test_idx, "B", "test")
 
     # Extract train activations for W
     print("[Step 3] Extracting train activations...")
-    inputs, _ = generate_all_pairs()
-    small_acts_train = []
-    for l in range(CFG_SMALL["n_layers"]):
-        path = f"{ACT_DIR}/small_acts_train.npy"
-    small_acts_train, _ = extract_activations(model_a, CFG_SMALL, train_idx, "A-train")
-    big_acts_train, _ = extract_activations(model_b, CFG_BIG, train_idx, "B-train")
+    small_acts_train, _ = extract_activations(model_a, CFG_SMALL, train_idx, "A-train", "train")
+    big_acts_train, _ = extract_activations(model_b, CFG_BIG, train_idx, "B-train", "train")
 
     # Step 4: probe per layer
     print("\n[Step 4] Probing per layer...")
@@ -505,6 +509,7 @@ def main():
         big_acts_train[CFG_BIG["n_layers"] - 1],
         small_acts_test[CFG_SMALL["n_layers"] - 1],
         big_acts_test[CFG_BIG["n_layers"] - 1],
+        SEED,
     )
 
     # Step 6: projected probe
@@ -513,6 +518,7 @@ def main():
         W,
         small_acts_test[CFG_SMALL["n_layers"] - 1],
         labels_test,
+        SEED,
     )
 
     # Step 7: steering
