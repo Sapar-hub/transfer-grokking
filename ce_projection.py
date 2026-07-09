@@ -344,7 +344,10 @@ def main():
         h_ce = W_ce(torch.from_numpy(small_test).float())
         h_phi2 = torch.from_numpy(phi2_test).float()
         cos_ce = nn.functional.cosine_similarity(h_ce, h_phi2, dim=1).mean().item()
+        norm_ce = h_ce.norm(dim=1).mean().item()
+        norm_phi2 = h_phi2.norm(dim=1).mean().item()
     print(f"  W_CE  cos_sim vs L10 targets: {cos_ce:.4f}")
+    print(f"  ‖W_CE(h)‖ mean: {norm_ce:.3f}, ‖h_phi2‖ mean: {norm_phi2:.3f}, ratio: {norm_ce/norm_phi2:.3f}")
 
     print(f"\n[6] Alpha sweep (patch at L{LAYER})...")
     alpha_results = []
