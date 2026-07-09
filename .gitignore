@@ -1,2 +1,21 @@
 __pycache__/
 *.egg-info/
+logs/
+pipeline.log
+
+# Train-set activations (test sets already tracked)
+artifacts/activations/*_train.npy
+
+# Cached sliced lm_head
+artifacts/lm_head_*.pt
+
+# Multi-seed clean_test.py artifacts
+artifacts/projection/*_seed*
+
+# Random baseline cached activations + per-seed csv/md
+artifacts/random_baseline/random_acts_seed*.npy
+artifacts/random_baseline/results_seed42.csv
+artifacts/random_baseline/summary_seed42.md
+
+# Per-seed steering summaries (base summary.md tracked)
+artifacts/steering/summary_seed*.md
