@@ -17,8 +17,8 @@ for op in add mult; do
         out_dir="artifacts/ce_projection/seeds"
         [ "$op" = "mult" ] && out_dir="${out_dir}_mult"
         w_path="${out_dir}/W_ce_seed${seed}.pth"
-        if [ -f "$w_path" ]; then
-            echo "[skip] ce_projection seed=$seed op=$op (W already exists)"
+        if [ -f "$w_path" ] && [ "$w_path" -nt "ce_projection.py" ]; then
+            echo "[skip] ce_projection seed=$seed op=$op (W exists and up to date)"
         else
             echo "[run]  ce_projection seed=$seed op=$op"
             python ce_projection.py "$seed" "$op"
@@ -33,8 +33,8 @@ for op in add mult; do
         out_dir="artifacts/l31_patch"
         [ "$op" = "mult" ] && out_dir="${out_dir}_mult"
         csv_path="${out_dir}/alpha_sweep_l31_seed${seed}.csv"
-        if [ -f "$csv_path" ]; then
-            echo "[skip] l31_patch seed=$seed op=$op (CSV already exists)"
+        if [ -f "$csv_path" ] && [ "$csv_path" -nt "l31_patch.py" ]; then
+            echo "[skip] l31_patch seed=$seed op=$op (CSV exists and up to date)"
         else
             echo "[run]  l31_patch seed=$seed op=$op"
             python l31_patch.py "$seed" "$op"

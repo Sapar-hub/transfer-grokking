@@ -1,4 +1,4 @@
-# CE Projection Experiment Summary (seed=42, op=add)
+# CE Projection Experiment Summary (seed=46, op=add)
 
 ## Setup
 
@@ -6,7 +6,7 @@
 |-----------|-------|
 | Layer | 10 |
 | Operation | add mod 97 |
-| Seed | 42 |
+| Seed | 46 |
 | D_small → D_phi2 | 128 → 2560 |
 | Train / Test | 6586 / 2823 |
 | W_CE loss | CE through frozen lm_head + final_layernorm |
@@ -18,8 +18,8 @@
 
 | Metric | W_MSE | W_CE | Delta |
 |--------|-------|------|-------|
-| Cos sim (test) | 0.1441 | -0.0010 | -0.1450 |
-| Logit lens | 0.0113 | 1.0000 | +0.9887 |
+| Cos sim (test) | 0.1441 | -0.0014 | -0.1455 |
+| Logit lens | 0.0120 | 1.0000 | +0.9880 |
 | Probe on W(h) | 1.0000 | 1.0000 | +0.0000 |
 
 ## Alpha sweep (text accuracy at L10)
@@ -28,12 +28,12 @@
 |-------|-------|------|-------|
 | 0.0 | 0.2350 | 0.2350 | +0.0000 |
 | 0.3 | 0.2900 | 0.2950 | +0.0050 |
-| 0.5 | 0.3050 | 0.3000 | -0.0050 |
-| 0.7 | 0.2800 | 0.2800 | +0.0000 |
+| 0.5 | 0.3050 | 0.3050 | +0.0000 |
+| 0.7 | 0.2800 | 0.2850 | +0.0050 |
 | 1.0 | 0.0150 | 0.0200 | +0.0050 |
 
 Baseline (no patch): 0.2350
 
 ---
 
-_Seed 42, operation: add_
+_Seed 46, operation: add_

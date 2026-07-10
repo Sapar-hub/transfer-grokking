@@ -357,7 +357,7 @@ Template generalization fails (T0→T1/T2/T3 ≈ 0.02) — the adapter learns su
 
 ### Part A: CE-trained W (ce_projection.py)
 
-**Method:** Train `W_ce: nn.Linear(128, 2560)` via CE through frozen lm_head (no layernorm) on 6586 training pairs, 5000 epochs. Compare with W_MSE trained on the same data to match Phi-2 L10 activations.
+**Method:** Train `W_ce: nn.Linear(128, 2560)` via CE through frozen lm_head + final_layernorm on 6586 training pairs, 5000 epochs. Compare with W_MSE trained on the same data to match Phi-2 L10 activations.
 
 **Results:**
 
@@ -375,25 +375,26 @@ W_CE achieves perfect logit-lens accuracy — **MSE was the sole cause of lm_hea
 
 **Results:**
 
-| Alpha | W_MSE L10 | W_MSE L31 | W_CE L10 | **W_CE L31** |
-|-------|:---------:|:---------:|:--------:|:------------:|
-| 0.3 | 0.290 | 0.235 | 0.265 | **0.490** |
-| 0.5 | 0.305 | 0.235 | 0.260 | **0.705** |
-| 0.7 | 0.280 | 0.235 | 0.230 | **0.995** |
-| 1.0 | 0.015 | 0.010 | 0.040 | **1.000** |
+| Alpha | W_MSE L10 | W_MSE L31 | W_CE L10 | **W_CE L31 (old)** | **W_CE L31 (current)** |
+|-------|:---------:|:---------:|:--------:|:------------------:|:----------------------:|
+| 0.3 | 0.290 | 0.235 | 0.295 | **0.490** | **0.250** |
+| 0.5 | 0.305 | 0.235 | 0.300 | **0.705** | **0.265** |
+| 0.7 | 0.285 | 0.235 | 0.280 | **0.995** | **0.290** |
+| 1.0 | 0.015 | 0.010 | 0.040 | **1.000** | **1.000** |
 
-W_CE at L31 achieves **perfect accuracy (1.0) at α=1.0** with monotonic improvement across all alpha values. W_MSE at L31 does nothing (all α = baseline 0.235).
+W_CE at L31 achieves **perfect accuracy (1.0) at α=1.0** but the layernorm addition flattened α<1.0 performance (old W_CE without layernorm showed monotonic improvement). W_MSE at L31 does nothing (all α = baseline 0.235).
 
 **Key findings:**
 1. **CE through lm_head resolves barrier 1:** W_CE logit lens = 1.0, proving MSE was misaligning W from decoding directions
-2. **The context/geometry conflict was layer-specific, not fundamental:** at L31 there is no remaining computation to corrupt the injected signal, and W_CE is perfectly aligned with lm_head's decoding directions
-3. **Neural function call works:** a grokked model's computed state can be injected into an LLM's final residual layer to directly produce correct output tokens, bypassing all intermediate computation
+2. **Layernorm in W_CE training regressed α<1.0 patching:** adding `final_layernorm` to `train_W_ce` made W_CE dependent on normalization statistics. At α<1.0, mixing with Phi-2's residual stream shifts these statistics → alignment breaks (α=0.7: 0.995→0.290). If α<1.0 patching is desired, train W_CE without layernorm.
+3. **Neural function call works:** a grokked model's computed state can be injected into an LLM's final residual layer at α=1.0 to directly produce correct output tokens, bypassing all intermediate computation
 
 **Interpretation — the final resolution:**
 The series' core question was whether grokked representations are geometrically transferable. The answer is **yes, with the right interface**:
 - W must be trained with **CE loss through the target's lm_head**, not MSE on activations
 - Injection must happen at the **last layer** where no further computation can interfere
-- Under these conditions, the transfer is perfect (1.0)
+- For partial injection (α<1.0), train W **without layernorm** to avoid normalization-dependent alignment
+- Under full injection (α=1.0), the transfer is perfect (1.0)
 
 The earlier experiments (clean test, residual patch, nonlinear adapter) all failed because they used MSE training, intermediate-layer injection, or both — each alone was sufficient to block transfer.
 
@@ -425,7 +426,7 @@ The earlier experiments (clean test, residual patch, nonlinear adapter) all fail
 7. **Grokked models compile algorithms; LLMs simulate them via language** — the Embed Patch experiment (cos=0.82, acc=0.01) proves the gap is fundamental: the grokked model's Fourier geometry is weight-stored, while Phi-2's probe structure (~0.41 at layer 30) is computed from text context. These are incommensurable representation types — compiled vs simulated — and no linear method can bridge them.
 8. **Phi-2 needs all 32 layers to compute the answer** — the Natural Adapter experiment (best linear readout = 0.045 vs LM head = 0.235) confirms the LM head is not a bottleneck. The answer is computed through the full stack, not linearly separable at any single residual layer. Template format critically determines residual structure (T2→T2 = 0.12 vs T3→T3 = 0.04 vs Phase 3 probe = 0.41 on `"# (a + b) % 97 ="`).
 9. **CE through frozen lm_head resolves W→lm_head alignment** — training the projection W via CrossEntropy (instead of MSE) achieves logit lens = 1.0. MSE was the sole cause of lm_head misalignment across all prior experiments.
-10. **Neural function call works: inject grokked state at L31 → perfect accuracy** — W_CE(h_A) patched at Phi-2's last layer (L31, α=1.0) gives 1.0. The context/geometry conflict was layer-specific, not fundamental: L31 has no remaining computation to corrupt the signal, and W_CE is perfectly aligned with lm_head's decoding directions. The series' core question is resolved: grokked representations are transferable with the right interface (CE-trained W + last-layer injection).
+10. **Neural function call works: inject grokked state at L31 → perfect accuracy at α=1.0** — W_CE(h_A) patched at Phi-2's last layer (L31, α=1.0) gives 1.0. However, adding `final_layernorm` to W_CE training regressed α<1.0 performance: α=0.7 dropped from 0.995→0.290, α=0.5 from 0.705→0.265, α=0.3 from 0.490→0.250. The layernorm fix was correct for logit-lens evaluation but makes W_CE dependent on normalization statistics that shift during mixed-signal patching. For α<1.0 injection, train W_CE without layernorm. The series' core question is resolved: grokked representations are transferable with the right interface (CE-trained W + last-layer injection).
 
 ---
 
