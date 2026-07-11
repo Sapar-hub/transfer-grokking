@@ -23,7 +23,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 SEEDS = [42, 43, 44, 45, 46]
 ALPHAS = [0.0, 0.3, 0.5, 0.7, 1.0]
-PPL_ALPHAS = [0.0, 0.5, 1.0]
+PPL_ALPHAS = [0.0, 0.3, 0.5, 0.7, 1.0]
 
 
 def read_csv_rows(path):

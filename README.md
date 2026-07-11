@@ -386,15 +386,14 @@ W_CE at L31 achieves **perfect accuracy (1.0) at α=1.0** but the layernorm addi
 
 **Key findings:**
 1. **CE through lm_head resolves barrier 1:** W_CE logit lens = 1.0, proving MSE was misaligning W from decoding directions
-2. **Layernorm in W_CE training regressed α<1.0 patching:** adding `final_layernorm` to `train_W_ce` made W_CE dependent on normalization statistics. At α<1.0, mixing with Phi-2's residual stream shifts these statistics → alignment breaks (α=0.7: 0.995→0.290). If α<1.0 patching is desired, train W_CE without layernorm.
+2. **Layernorm in W_CE training regressed α<1.0 patching:** α=0.7 dropped 0.995→0.290, α=0.5 dropped 0.705→0.265, α=0.3 dropped 0.490→0.250. This is not a bug to reverse — the no-layernorm numbers were themselves an artifact of training W_CE in the wrong representational space (see Barrier 1, main paper §4). Under the architecturally correct layernorm-inclusive objective, confirmed across all 5 seeds, the true result is a discontinuous override: negligible effect at α<1.0, perfect accuracy only at α=1.0 (AGENTS.md Finding #12).
 3. **Neural function call works:** a grokked model's computed state can be injected into an LLM's final residual layer at α=1.0 to directly produce correct output tokens, bypassing all intermediate computation
 
 **Interpretation — the final resolution:**
 The series' core question was whether grokked representations are geometrically transferable. The answer is **yes, with the right interface**:
 - W must be trained with **CE loss through the target's lm_head**, not MSE on activations
 - Injection must happen at the **last layer** where no further computation can interfere
-- For partial injection (α<1.0), train W **without layernorm** to avoid normalization-dependent alignment
-- Under full injection (α=1.0), the transfer is perfect (1.0)
+- The mechanism is **winner-take-all at α=1.0**, not a continuous blend — partial injection provides no benefit under the architecturally correct (layernorm-inclusive) training
 
 The earlier experiments (clean test, residual patch, nonlinear adapter) all failed because they used MSE training, intermediate-layer injection, or both — each alone was sufficient to block transfer.
 
@@ -426,7 +425,7 @@ The earlier experiments (clean test, residual patch, nonlinear adapter) all fail
 7. **Grokked models compile algorithms; LLMs simulate them via language** — the Embed Patch experiment (cos=0.82, acc=0.01) proves the gap is fundamental: the grokked model's Fourier geometry is weight-stored, while Phi-2's probe structure (~0.41 at layer 30) is computed from text context. These are incommensurable representation types — compiled vs simulated — and no linear method can bridge them.
 8. **Phi-2 needs all 32 layers to compute the answer** — the Natural Adapter experiment (best linear readout = 0.045 vs LM head = 0.235) confirms the LM head is not a bottleneck. The answer is computed through the full stack, not linearly separable at any single residual layer. Template format critically determines residual structure (T2→T2 = 0.12 vs T3→T3 = 0.04 vs Phase 3 probe = 0.41 on `"# (a + b) % 97 ="`).
 9. **CE through frozen lm_head resolves W→lm_head alignment** — training the projection W via CrossEntropy (instead of MSE) achieves logit lens = 1.0. MSE was the sole cause of lm_head misalignment across all prior experiments.
-10. **Neural function call works: inject grokked state at L31 → perfect accuracy at α=1.0** — W_CE(h_A) patched at Phi-2's last layer (L31, α=1.0) gives 1.0. However, adding `final_layernorm` to W_CE training regressed α<1.0 performance: α=0.7 dropped from 0.995→0.290, α=0.5 from 0.705→0.265, α=0.3 from 0.490→0.250. The layernorm fix was correct for logit-lens evaluation but makes W_CE dependent on normalization statistics that shift during mixed-signal patching. For α<1.0 injection, train W_CE without layernorm. The series' core question is resolved: grokked representations are transferable with the right interface (CE-trained W + last-layer injection).
+10. **Neural function call works: inject grokked state at L31 → perfect accuracy at α=1.0.** Adding `final_layernorm` to W_CE training (the architecturally correct choice, see Barrier 1) regressed apparent α<1.0 performance: α=0.7 from 0.995→0.290, α=0.5 from 0.705→0.265, α=0.3 from 0.490→0.250. These are not two competing training modes — the no-layernorm numbers reflected W_CE operating in the wrong representational space. The established result, confirmed across all 5 seeds, is a discontinuous override: full replacement at α=1.0 or nothing (AGENTS.md Finding #12). The series' core question is resolved: grokked representations are transferable, but only via full-strength injection at the last layer, not partial blending.
 
 ---
 

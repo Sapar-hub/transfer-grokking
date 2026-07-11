@@ -21,3 +21,13 @@ artifacts/random_baseline/summary_seed42.md
 
 # Per-seed steering summaries (base summary.md tracked)
 artifacts/steering/summary_seed*.md
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+
+# Ad-hoc logs
+ppl.log
