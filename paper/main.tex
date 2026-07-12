@@ -243,6 +243,57 @@ For multiplication mod~97, CE training likewise achieves $W_{\text{CE}}$
 with logit-lens accuracy $1.0$, demonstrating the approach is
 operation-agnostic.
 
+\paragraph{Validity check.}
+To verify that CE projection succeeds specifically because of the grokked
+model's Fourier structure---not because cross-entropy through a frozen
+lm\_head can fit any sufficiently-parameterized 128-dimensional input---we
+compare the grokked model against three linear controls: a random untrained
+network (25 draws: 5 sub-seeds~$\times$~5 main seeds), a one-hot encoding
+($194\rightarrow128$), and a wide one-hot encoding
+($194\rightarrow256$, matched parameter count to the grokked model's
+bottleneck width).  All are trained through the identical CE objective,
+lm\_head slice, and final-layernorm path as the mainline $W_{\text{CE}}$.
+
+\begin{table}[ht]
+  \centering
+  \caption{Control experiments for CE projection (mean~$\pm$~std over 5 seeds,
+            with 25 draws for the random condition).}
+  \label{tab:controls}
+  \begin{tabular}{lcccc}
+    \toprule
+    Condition & Add LL & Add probe & Mult LL & Mult probe \\
+    \midrule
+    Random & $0.000 \pm 0.000$ & $0.000 \pm 0.000$ & $0.015 \pm 0.001$ & $0.015 \pm 0.001$ \\
+    One-hot & $0.000 \pm 0.000$ & $0.000 \pm 0.000$ & $0.019 \pm 0.000$ & $0.020 \pm 0.000$ \\
+    One-hot (wide) & $0.000 \pm 0.000$ & $0.000 \pm 0.000$ & $0.019 \pm 0.000$ & $0.020 \pm 0.000$ \\
+    \midrule
+    Grokked & $1.000 \pm 0.000$ & $1.000 \pm 0.000$ & $1.000 \pm 0.000$ & $1.000 \pm 0.000$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+All three linear controls fail completely on addition and remain at or near
+chance on multiplication (chance~$\approx$~1.9\% rather than
+$1/97 \approx 1.0\%$, since label~0 occurs at twice the frequency of other
+labels in the multiplication task---always predicting~0 alone accounts for
+the small non-zero control values).  None of the linear controls approach the
+grokked model's perfect logit-lens accuracy on either task.  The
+$128\rightarrow2560$ bottleneck evidently cannot encode task-relevant structure
+from unstructured or purely combinatorial inputs regardless of parameter count;
+only the grokked model's circular Fourier features provide the necessary
+geometry for CE projection to succeed.
+
+A supplementary nonlinear control (one-hot~$\rightarrow$~ReLU~$\rightarrow$~128,
+with bias) partially closes this gap
+(logit-lens $0.700 \pm 0.027$ on addition, $0.449 \pm 0.048$ on
+multiplication) but remains well short of the grokked model's $1.0$ on both
+tasks.\footnote{The nonlinear control's hidden layer includes a bias term,
+giving it slightly more capacity than the bias-free linear controls above; its
+lower multiplication score is consistent with the same label-imbalance effect
+(a per-class breakdown shows near-perfect accuracy on the majority label but
+37--58\% on the remaining 96 classes) combined with multiplication's greater
+representational complexity relative to addition.}
+
 \section{L31 Injection Resolves Barrier~2}
 \label{sec:l31}
 
