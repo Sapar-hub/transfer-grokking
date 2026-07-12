@@ -1,8 +1,11 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import torch
 import torch.nn as nn
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
-import os, csv, sys
+import csv
 
 from utils import DEVICE, P
 
@@ -174,9 +177,9 @@ def main():
     lines.append(f"| Parameter | Value |")
     lines.append(f"|-----------|-------|")
     lines.append(f"| Patch layer | {PATCH_LAYER} |")
-    lines.append(f"| Test pairs | 200 (seed=42) |")
-    lines.append(f"| W_CE source | {CE_DIR}/W_ce.pth |")
-    lines.append(f"| W_MSE source | {CE_DIR}/W_mse.pth |\n")
+    lines.append(f"| Test pairs | 200 (seed={SEED}) |")
+    lines.append(f"| W_CE source | {CE_DIR}/seeds{SUFFIX}/W_ce_seed{SEED}.pth |")
+    lines.append(f"| W_MSE source | {CE_DIR}/seeds{SUFFIX}/W_mse_seed{SEED}.pth |\n")
     lines.append("## Alpha sweep results\n")
     lines.append("| Alpha | W_MSE L10 | W_MSE L31 | W_CE L10 | W_CE L31 |")
     lines.append("|-------|-----------|-----------|----------|----------|")

@@ -1,3 +1,6 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +10,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import os, csv, sys
+import csv
 
 from utils import DEVICE, P, train_probe
 

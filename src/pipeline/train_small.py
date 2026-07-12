@@ -1,7 +1,9 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import torch
 import torch.optim as optim
 import numpy as np
-import os, sys
 
 from model import SmallTransformer
 from utils import DEVICE, P, generate_all_pairs, plot_curves
