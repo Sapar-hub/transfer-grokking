@@ -171,7 +171,7 @@ Embed Patch bypasses the tokenizer altogether and achieves high similarity
 {\centering
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.48\textwidth]{../artifacts/paper_figures/figure_a_cos_probe.png}
+  \includegraphics[width=0.48\textwidth]{../artifacts/final/paper_figures/figure_a_cos_probe.png}
   \caption{\textbf{Cosine similarity vs.\ probe accuracy.}
   Four transfer configurations reveal a consistent gap between representational
   similarity and linear separability.  The $y=x$ diagonal marks perfect
@@ -221,7 +221,7 @@ directions.
 \paragraph{Results.}
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.48\textwidth]{../artifacts/paper_figures/figure_b_mse_vs_ce.png}
+  \includegraphics[width=0.48\textwidth]{../artifacts/final/paper_figures/figure_b_mse_vs_ce.png}
   \caption{\textbf{MSE vs.\ CE projection.}
   CE training achieves perfect logit-lens accuracy ($1.0$) while MSE
   training yields near-random decoding ($0.012$).  Both projections are
@@ -307,7 +307,7 @@ at the final transformer block (L31 for Phi-2), sweeping $\alpha \in \{0.0,
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.95\textwidth]{../artifacts/paper_figures/alpha_sweep_add.png}
+  \includegraphics[width=0.95\textwidth]{../artifacts/final/paper_figures/alpha_sweep_add.png}
   \caption{\textbf{L31 $\alpha$-sweep for addition mod~97.}
   Blue line: accuracy (left axis).  Red dashed line: perplexity (right axis,
   log scale).  Gray dashed line: random baseline ($1/97 \approx 0.010$).
@@ -504,7 +504,7 @@ that neither achieves meaningful transfer at this depth.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.75\textwidth]{../artifacts/paper_figures/alpha_sweep_multiply.png}
+  \includegraphics[width=0.75\textwidth]{../artifacts/final/paper_figures/alpha_sweep_multiply.png}
   \caption{\textbf{L31 $\alpha$-sweep for multiplication mod~97.}
   Same format as Figure~\ref{fig:alpha_add}.  Accuracy is flat at the
   random-adjacent baseline ($0.030$) through $\alpha=0.7$, then jumps
@@ -520,7 +520,7 @@ side-by-side, highlighting the consistent pattern.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.85\textwidth]{../artifacts/paper_figures/cross_task_comparison.png}
+  \includegraphics[width=0.85\textwidth]{../artifacts/final/paper_figures/cross_task_comparison.png}
   \caption{\textbf{Cross-task comparison.}
   Addition (blue) and multiplication (orange) accuracy across $\alpha$ values.
   Both tasks reach $1.0$ at $\alpha=1.0$; at every $\alpha \leq 0.7$ both

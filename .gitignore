@@ -1,27 +1,21 @@
 __pycache__/
-src/__pycache__/
 .venv/
 .mypy_cache/
 *.egg-info/
-logs/
-pipeline.log
+*.log
+uv.lock
 
-# Train-set activations (test sets already tracked)
-artifacts/activations/*_train.npy
+# Derived artifacts under artifacts/ — regenerate via pipeline, never track
+artifacts/**/*.npy
+artifacts/**/*.pth
+artifacts/**/*.pt
+artifacts/**/*.csv
+artifacts/**/*.md
+artifacts/**/*.png
+artifacts/**/*.npz
 
-# Cached sliced lm_head
-artifacts/lm_head_*.pt
-
-# Multi-seed clean_test.py artifacts
-artifacts/projection/*_seed*
-
-# Random baseline cached activations + per-seed csv/md
-artifacts/random_baseline/random_acts_seed*.npy
-artifacts/random_baseline/results_seed42.csv
-artifacts/random_baseline/summary_seed42.md
-
-# Per-seed steering summaries (base summary.md tracked)
-artifacts/steering/summary_seed*.md
+# Exception: paper figures (small, hand-picked outputs for the paper)
+!artifacts/final/paper_figures/*.png
 
 # LaTeX build artifacts
 paper/*.aux
@@ -29,9 +23,3 @@ paper/*.bbl
 paper/*.blg
 paper/*.log
 paper/*.out
-
-# Ad-hoc logs
-*.log
-
-# uv lockfile (not a pip project)
-uv.lock

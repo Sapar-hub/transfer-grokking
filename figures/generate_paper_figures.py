@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-ARTIFACTS = "artifacts"
+ARTIFACTS = "artifacts/final"
 OUT_DIR = f"{ARTIFACTS}/paper_figures"
 
 
@@ -89,7 +89,7 @@ def main():
     print("Loading data...")
     small_acts = np.load(f"{ARTIFACTS}/small_model_activations.npy")
     labels = np.load(f"{ARTIFACTS}/mod_arithmetic_labels.npy", allow_pickle=True)
-    phi2_acts = np.load(f"{ARTIFACTS}/cross_model/microsoft_phi_2_L31_acts.npy")
+    phi2_acts = np.load(f"{ARTIFACTS}/microsoft_phi_2_L31_acts.npy")
     print(f"  Small acts: {small_acts.shape}")
     print(f"  Phi-2 L31 acts: {phi2_acts.shape}")
 
