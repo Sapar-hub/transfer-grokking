@@ -1,7 +1,9 @@
 #!/bin/bash
-# Full pipeline: train small model → cache activations → CE projection →
-# L31 patch → perplexity eval → cross-model probe → controls
+# Full pipeline: cache activations → CE projection → L31 patch →
+# perplexity eval → cross-model probe → controls
 # Seeds 42-46, ops add + mult
+# Requires grokked model weights in artifacts/small{,_mult}/best_model.pth
+# (committed via LFS; run `git lfs pull` first if missing).
 # Run with: nohup bash run_pipeline.sh > pipeline.log 2>&1 &
 
 set -e
@@ -12,19 +14,7 @@ cd "$BASE_DIR"
 
 echo "=== Pipeline started at $(date) ==="
 
-# ---- Step 1: Train small model ----
-for op in add mult; do
-  if [ "$op" = "mult" ]; then model_dir="artifacts/small_mult"; else model_dir="artifacts/small"; fi
-  if [ -f "${model_dir}/best_model.pth" ]; then
-    echo "[skip] train_small op=$op (model exists)"
-  else
-    echo "[run]  train_small op=$op"
-    python src/pipeline/train_small.py "$op"
-    echo "[done] train_small op=$op"
-  fi
-done
-
-# ---- Step 2: Cache activations ----
+# ---- Step 1: Cache activations ----
 for op in add mult; do
   suf=""; [ "$op" = "mult" ] && suf="_mult"
   act_path="artifacts/small_model_activations${suf}.npy"
@@ -38,7 +28,7 @@ for op in add mult; do
   fi
 done
 
-# ---- Step 3: CE Projection ----
+# ---- Step 2: CE Projection ----
 for op in add mult; do
   for seed in 42 43 44 45 46; do
     if [ "$op" = "mult" ]; then out_dir="artifacts/ce_projection/seeds_mult"; else out_dir="artifacts/ce_projection/seeds"; fi
@@ -53,7 +43,7 @@ for op in add mult; do
   done
 done
 
-# ---- Step 4: L31 Patch ----
+# ---- Step 3: L31 Patch ----
 for op in add mult; do
   for seed in 42 43 44 45 46; do
     if [ "$op" = "mult" ]; then out_dir="artifacts/l31_patch_mult"; else out_dir="artifacts/l31_patch"; fi
@@ -68,7 +58,7 @@ for op in add mult; do
   done
 done
 
-# ---- Step 5: Perplexity eval ----
+# ---- Step 4: Perplexity eval ----
 for op in add mult; do
   suf=""; [ "$op" = "mult" ] && suf="_mult"
   csv_path="artifacts/l31_patch${suf}/perplexity_sweep_seed42.csv"
@@ -81,7 +71,7 @@ for op in add mult; do
   fi
 done
 
-# ---- Step 6: Cross-model probe ----
+# ---- Step 5: Cross-model probe ----
 cmp_path="artifacts/cross_model/probe_comparison.md"
 if [ -f "$cmp_path" ]; then
   echo "[skip] cross_model_probe (cached)"
@@ -91,7 +81,7 @@ else
   echo "[done] cross_model_probe"
 fi
 
-# ---- Step 7: Controls (logit-lens only, skips full Phi-2 load) ----
+# ---- Step 6: Controls (logit-lens only, skips full Phi-2 load) ----
 for op in add mult; do
   suf=""; [ "$op" = "mult" ] && suf="_mult"
   csv_path="artifacts/random_baseline/results_seed42${suf}.csv"

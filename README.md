@@ -52,12 +52,12 @@ bash run_pipeline.sh
 python src/pipeline/train_small.py add    # ~30k epochs (~30 min)
 python src/pipeline/train_small.py mult   # ~100k epochs (~60 min)
 
-# Steps 2–7: same as quick start above (cache → CE → patch → eval → controls)
+# Steps 1–6: same as quick start above (cache → CE → patch → eval → controls)
 python src/pipeline/cache_activations.py add
 …
 ```
 
-Training is CPU-only and takes the bulk of the time. Once model checkpoints exist, all downstream steps run in seconds. `run_pipeline.sh` automates the full 7-step, 5-seed sequence with skip-on-cache.
+Training is CPU-only and takes the bulk of the time. Once model checkpoints exist, all downstream steps run in seconds. `run_pipeline.sh` automates the full 6-step, 5-seed sequence with skip-on-cache.
 
 ## Reproduce paper figures
 
