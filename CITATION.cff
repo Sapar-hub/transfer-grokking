@@ -6,8 +6,8 @@ authors:
     given-names: Saparmyrat
     orcid: "https://orcid.org/0009-0001-2717-732X"
     affiliation: "RTU MIREA"
-version: 1.0.0
-date-released: 2026-07-02
+version: 2.0.0
+date-released: 2026-07-14
 license: MIT
 repository-code: "https://github.com/Sapar-hub/transfer-grokking"
 type: software
