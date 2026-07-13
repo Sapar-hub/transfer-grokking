@@ -290,9 +290,9 @@ def main():
 
     print("\n[1] Loading Phi-2...")
     phi2 = AutoModelForCausalLM.from_pretrained(
-        "microsoft/phi-2", dtype=torch.float32, device_map=None
+        "microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0", dtype=torch.float32, device_map=None
     )
-    tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+    tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0")
     tokenizer.pad_token = tokenizer.eos_token
     phi2.eval()
     phi2.lm_head.requires_grad_(False)

@@ -376,9 +376,9 @@ def main():
         try:
             print("\n[1] Loading full Phi-2 model...")
             phi2 = AutoModelForCausalLM.from_pretrained(
-                "microsoft/phi-2", dtype=torch.float32, device_map=None
+                "microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0", dtype=torch.float32, device_map=None
             )
-            tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+            tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0")
             tokenizer.pad_token = tokenizer.eos_token
             phi2.eval()
             phi2.lm_head.requires_grad_(False)
@@ -404,9 +404,9 @@ def main():
         if not os.path.exists(lm_head_cache):
             print("  Cache not found — loading Phi-2 to generate it...")
             phi2 = AutoModelForCausalLM.from_pretrained(
-                "microsoft/phi-2", dtype=torch.float32, device_map=None
+                "microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0", dtype=torch.float32, device_map=None
             )
-            tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+            tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0")
             tokenizer.pad_token = tokenizer.eos_token
             phi2.eval()
             phi2.lm_head.requires_grad_(False)
@@ -423,7 +423,7 @@ def main():
             del phi2
         lm_head_sliced = torch.load(lm_head_cache, map_location=DEVICE, weights_only=True).float()
         print(f"  Loaded lm_head_sliced: {lm_head_sliced.shape}")
-        tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0")
         tokenizer.pad_token = tokenizer.eos_token
 
         if os.path.exists(ln_cache):

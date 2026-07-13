@@ -144,9 +144,9 @@ def main():
 
     print("\n[1] Loading Phi-2 (once, shared across all seeds)...")
     phi2 = AutoModelForCausalLM.from_pretrained(
-        "microsoft/phi-2", dtype=torch.float32, device_map=None
+        "microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0", dtype=torch.float32, device_map=None
     )
-    tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+    tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2", revision="810d367871c1d460086d9f82db8696f2e0a0fcd0")
     tokenizer.pad_token = tokenizer.eos_token
     phi2.eval()
     print("  Phi-2 loaded.")
