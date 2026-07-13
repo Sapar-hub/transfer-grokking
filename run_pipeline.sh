@@ -14,7 +14,7 @@ echo "=== Pipeline started at $(date) ==="
 
 # ---- Step 1: Train small model ----
 for op in add mult; do
-  model_dir="artifacts/small$( [ "$op" = "mult" ] && echo "_mult" )"
+  if [ "$op" = "mult" ]; then model_dir="artifacts/small_mult"; else model_dir="artifacts/small"; fi
   if [ -f "${model_dir}/best_model.pth" ]; then
     echo "[skip] train_small op=$op (model exists)"
   else
@@ -41,7 +41,7 @@ done
 # ---- Step 3: CE Projection ----
 for op in add mult; do
   for seed in 42 43 44 45 46; do
-    out_dir="artifacts/ce_projection/seeds$( [ "$op" = "mult" ] && echo "_mult" )"
+    if [ "$op" = "mult" ]; then out_dir="artifacts/ce_projection/seeds_mult"; else out_dir="artifacts/ce_projection/seeds"; fi
     w_path="${out_dir}/W_ce_seed${seed}.pth"
     if [ -f "$w_path" ] && [ "$w_path" -nt "src/pipeline/ce_projection.py" ]; then
       echo "[skip] ce_projection seed=$seed op=$op (W exists and up to date)"
@@ -56,7 +56,7 @@ done
 # ---- Step 4: L31 Patch ----
 for op in add mult; do
   for seed in 42 43 44 45 46; do
-    out_dir="artifacts/l31_patch$( [ "$op" = "mult" ] && echo "_mult" )"
+    if [ "$op" = "mult" ]; then out_dir="artifacts/l31_patch_mult"; else out_dir="artifacts/l31_patch"; fi
     csv_path="${out_dir}/alpha_sweep_l31_seed${seed}.csv"
     if [ -f "$csv_path" ] && [ "$csv_path" -nt "src/pipeline/l31_patch.py" ]; then
       echo "[skip] l31_patch seed=$seed op=$op (CSV exists and up to date)"

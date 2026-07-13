@@ -402,8 +402,25 @@ def main():
     if partial_mode:
         print("\n[1] Loading cached lm_head and final_layernorm...")
         if not os.path.exists(lm_head_cache):
-            print("  CRITICAL: lm_head_sliced.pt not found. Cannot proceed.")
-            sys.exit(1)
+            print("  Cache not found — loading Phi-2 to generate it...")
+            phi2 = AutoModelForCausalLM.from_pretrained(
+                "microsoft/phi-2", dtype=torch.float32, device_map=None
+            )
+            tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
+            tokenizer.pad_token = tokenizer.eos_token
+            phi2.eval()
+            phi2.lm_head.requires_grad_(False)
+            number_ids = [tokenizer.encode(str(n))[0] for n in range(P)]
+            lm_head_sliced = phi2.lm_head.weight[number_ids].detach()
+            torch.save(lm_head_sliced, lm_head_cache)
+            print(f"  Generated and saved lm_head_sliced.pt ({lm_head_sliced.shape}).")
+
+            final_layernorm = phi2.model.final_layernorm
+            final_layernorm.requires_grad_(False)
+            final_layernorm.eval()
+            torch.save(final_layernorm.state_dict(), ln_cache)
+            print(f"  Generated and saved final_layernorm.pt.")
+            del phi2
         lm_head_sliced = torch.load(lm_head_cache, map_location=DEVICE, weights_only=True).float()
         print(f"  Loaded lm_head_sliced: {lm_head_sliced.shape}")
         tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")

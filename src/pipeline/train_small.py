@@ -35,7 +35,7 @@ def train():
     val_labels = all_labels[val_idx]
 
     batch_size = 256
-    num_epochs = 100000 if OP == "multiply" else 30000
+    num_epochs = 100000 if OP in ("mult", "multiply") else 30000
 
     train_accs = []
     val_accs = []

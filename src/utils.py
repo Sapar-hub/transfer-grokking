@@ -49,7 +49,7 @@ def generate_all_pairs(op="add"):
     inputs = torch.stack([a, b], dim=1)
     if op == "add":
         labels = (a + b) % P
-    elif op == "multiply":
+    elif op in ("mult", "multiply"):
         labels = (a * b) % P
     else:
         raise ValueError(f"Unknown op: {op}")
