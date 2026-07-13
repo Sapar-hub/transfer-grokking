@@ -399,3 +399,5 @@ The earlier experiments (clean test, residual patch, nonlinear adapter) all fail
 16. **Control experiments: all linear controls FAIL** under the layernorm-inclusive CE objective. Addition controls = 0.0000 ± 0.000; multiplication = 0.015–0.019 (near chance given label-0 imbalance). Grokked achieves 1.000 ± 0.000 on both ops.
 17. **Multiplication baseline bug (historical):** The OP_SYMBOL prompt-hardcoding bug caused multiplication's L31 α=0.5 accuracy to be measured as 0.370; correcting the prompt raised this to 0.660 under the pre-layernorm-fix W_CE. Now superseded by Finding #12 (layernorm-inclusive: 0.030).
 18. **Multiplication label imbalance confound:** For modular multiplication, label 0 appears 193× vs 96× for labels 1–96. Chance baseline rises from 1/97 ≈ 0.0103 to ~0.019. Onehot/random controls achieving ~0.015–0.019 on multiplication is entirely explained by this imbalance — not evidence of arithmetic structure.
+
+19. **Repository restructured for v2.0.0.** v1.0.0's Zenodo archive (DOI `10.5281/zenodo.21100972`) is superseded by v2.0.0 — cleaned history, separated pipeline/archive layout, fixed training bugs, verified grokking.
