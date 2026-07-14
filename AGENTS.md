@@ -50,6 +50,7 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `random_baseline.py` | Control experiments: one-hot + random untrained network (seeds 0-4), L31 α-sweep |
 | `analyze_baseline_asymmetry.py` | Phi-2 prediction distribution for add vs mult prompts |
 | `trivial_baselines.py` | Few-shot (5-shot) + LoRA baselines |
+| `self_projection.py` | Control: train W_self from Phi-2's own L31 acts, α-sweep at L31 vs W_ce |
 | `setup_phi2_cache.py` | Phi-2 model cache verification after manual download |
 
 Scripts above `ce_projection.py` are primarily in `experiments/` (exploratory dead ends). Core training scripts (`train_small.py`, `train.py`, `clean_test.py`, etc.) remain at root level. Scripts from `ce_projection.py` onward represent the final successful approach.
@@ -74,6 +75,7 @@ python ce_projection.py             # CE-vs-MSE: train W through frozen lm_head
 python l31_patch.py                 # Patch W_CE/W_MSE at Phi-2 L31 (alpha sweep vs L10)
 python eval_l31_perplexity.py          # Perplexity degradation of L31 patch on WikiText-2
 python cross_model_l31.py              # Cross-model validation (Qwen2-Math W_CE + L27 sweep)
+  python self_projection.py           # Control: W_self from Phi-2 L31 acts, α-sweep vs W_ce |
 python cross_model_probe.py            # Cross-model probe (bypasses BPE tokenizer barrier)
 ```
 
@@ -110,6 +112,15 @@ Scripts skip computation if a cache file exists:
 | `cross_model_l31.py` | `artifacts/cross_model/comparison_qwen2_math_1.5b_vs_phi2.md` | itself (cache) |
 | `cross_model_probe.py` | `artifacts/cross_model/probe_comparison.md` | itself (cache) |
 | `cross_model_probe.py` | `artifacts/cross_model/probe_comparison.png` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/phi2_L31_acts{_mult}.npy` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/seeds{_mult}/W_self_seed{N}.pth` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/seeds{_mult}/alpha_sweep_seed{N}.csv` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/comparison_summary{_mult}.md` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/comparison_seed{N}{_mult}.png` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/per_class_data.pkl` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/per_class_results.csv` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/per_class_comparison.png` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/per_class_dynamics.png` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -145,3 +156,11 @@ Scripts skip computation if a cache file exists:
 17. **Multiplication baseline bug (historical).** The OP_SYMBOL prompt-hardcoding bug caused multiplication's L31 α=0.5 accuracy to be measured as 0.370; correcting the prompt template raised this to 0.660 under the pre-layernorm-fix W_CE. This number is now superseded: under the layernorm-inclusive W_CE (Finding #12), multiplication α=0.5 accuracy is 0.030 (flat baseline), as the norm-mismatch mechanism dominates regardless of prompt correctness. Retained here only to document the OP_SYMBOL fix's validity at the time it was made.
 
 18. **Multiplication label imbalance confound (CRITICAL for control interpretation).** For modular multiplication (a·b mod 97), label 0 appears 193× (all pairs where a=0 or b=0) vs 96× for labels 1–96. This raises the chance baseline from 1/97 ≈ 0.0103 to ~0.019 (always predict 0). The onehot and random controls achieving ~0.015–0.019 on multiplication is entirely explained by this imbalance — they learn "if a=0 or b=0, predict 0" and guess uniformly otherwise. This is not evidence of arithmetic structure. Always check the mult label distribution when interpreting control accuracy on multiplication; the ~0.019 baseline is structurally higher than addition's 0.000, but both represent complete failure.
+
+19. **Self-projection controls refute uniform-margin hypothesis.** Four-model comparison (grokked W_ce, rescaled W_ce (1370×), W_self from Phi-2 L31, PCA-128+W_ce from Phi-2 L31) across full α range on full test set (n=2823):
+
+    - **Finding #12 corrected:** The cliff is NOT discontinuous. W_ce (raw) transitions smoothly from 0.264→1.000 over α=0.7–0.999 with intermediate accuracies (0.281@0.7, 0.318@0.9, 0.496@0.98, 0.719@0.99, 0.983@0.995). It's a compressed but continuous curve.
+    - **No model shows bimodal per-class accuracy.** At matched overall accuracy (~0.5): W_ce (raw) σ=0.267 (15/97 classes <0.2), W_self σ=0.204 (7/97 <0.2), PCA-128 σ=0.161 (1/97 <0.2). All show graded distributions. PCA-128 is *more* uniform, not less.
+    - **Steepness gradient:** grokked W_ce (Δα=0.30 for 0.28→1.0) > rescaled W_ce (Δα=0.15 for 0.26→1.0) > W_self (smooth over Δα=1.0) > PCA-128 (smooth over Δα=1.0). Scale rescaling shifts the curve left but steepness persists.
+    - **Ceilings: 1.0** (grokked) > **0.83** (W_self, self-referential limit) > **0.55** (PCA-128, 7% variance loss).
+    - **Per-class margin uniformity is not the mechanism.** The cliff is explained by scale mismatch (‖W_ce‖/‖h_Phi2‖=0.0014) × compressed α-sensitivity, not bimodal class flipping. See `artifacts/self_projection/per_class_results.csv` and `per_class_comparison.png`.

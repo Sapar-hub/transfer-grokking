@@ -13,6 +13,7 @@ artifacts/**/*.csv
 artifacts/**/*.md
 artifacts/**/*.png
 artifacts/**/*.npz
+artifacts/**/*.pkl
 
 # Exception: paper figures (small, hand-picked outputs for the paper)
 !artifacts/final/paper_figures/*.png
