@@ -121,6 +121,8 @@ Scripts skip computation if a cache file exists:
 | `self_projection.py` | `artifacts/self_projection/per_class_results.csv` | itself (cache) |
 | `self_projection.py` | `artifacts/self_projection/per_class_comparison.png` | itself (cache) |
 | `self_projection.py` | `artifacts/self_projection/per_class_dynamics.png` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/crossing_alpha_data.pkl` | itself (cache) |
+| `self_projection.py` | `artifacts/self_projection/crossing_alpha_hist.png` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)
@@ -157,10 +159,12 @@ Scripts skip computation if a cache file exists:
 
 18. **Multiplication label imbalance confound (CRITICAL for control interpretation).** For modular multiplication (a·b mod 97), label 0 appears 193× (all pairs where a=0 or b=0) vs 96× for labels 1–96. This raises the chance baseline from 1/97 ≈ 0.0103 to ~0.019 (always predict 0). The onehot and random controls achieving ~0.015–0.019 on multiplication is entirely explained by this imbalance — they learn "if a=0 or b=0, predict 0" and guess uniformly otherwise. This is not evidence of arithmetic structure. Always check the mult label distribution when interpreting control accuracy on multiplication; the ~0.019 baseline is structurally higher than addition's 0.000, but both represent complete failure.
 
-19. **Self-projection controls refute uniform-margin hypothesis.** Four-model comparison (grokked W_ce, rescaled W_ce (1370×), W_self from Phi-2 L31, PCA-128+W_ce from Phi-2 L31) across full α range on full test set (n=2823):
+19. **Self-projection controls.** Four-model comparison (grokked W_ce, rescaled W_ce (1370×), W_self from Phi-2 L31, PCA-128+W_ce from Phi-2 L31) across full α range on full test set (n=2823). Results fundamentally revise claims about the "discontinuous cliff":
 
-    - **Finding #12 corrected:** The cliff is NOT discontinuous. W_ce (raw) transitions smoothly from 0.264→1.000 over α=0.7–0.999 with intermediate accuracies (0.281@0.7, 0.318@0.9, 0.496@0.98, 0.719@0.99, 0.983@0.995). It's a compressed but continuous curve.
-    - **No model shows bimodal per-class accuracy.** At matched overall accuracy (~0.5): W_ce (raw) σ=0.267 (15/97 classes <0.2), W_self σ=0.204 (7/97 <0.2), PCA-128 σ=0.161 (1/97 <0.2). All show graded distributions. PCA-128 is *more* uniform, not less.
-    - **Steepness gradient:** grokked W_ce (Δα=0.30 for 0.28→1.0) > rescaled W_ce (Δα=0.15 for 0.26→1.0) > W_self (smooth over Δα=1.0) > PCA-128 (smooth over Δα=1.0). Scale rescaling shifts the curve left but steepness persists.
-    - **Ceilings: 1.0** (grokked) > **0.83** (W_self, self-referential limit) > **0.55** (PCA-128, 7% variance loss).
-    - **Per-class margin uniformity is not the mechanism.** The cliff is explained by scale mismatch (‖W_ce‖/‖h_Phi2‖=0.0014) × compressed α-sensitivity, not bimodal class flipping. See `artifacts/self_projection/per_class_results.csv` and `per_class_comparison.png`.
+    - **Finding #12 corrected — the "cliff" is a sampling artifact.** The original 5-point sweep {0.0, 0.3, 0.5, 0.7, 1.0} sampled on either side of the S-curve ramp (compressed into α∈[0.95, 1.0]) and missed it. At fine resolution, W_ce (raw) transitions smoothly: 0.281@0.7, 0.318@0.9, 0.496@0.98, 0.719@0.99, 0.983@0.995, 1.0@0.999. The curve is continuous — just steep. The paper's "discontinuous override" framing should be replaced with "an S-curve so steep that 5-point sampling made it look like a step."
+    - **No model shows bimodal per-class accuracy** — but class-level σ was the wrong diagnostic. Per-class σ averages ~29 examples per class together, washing out within-class bimodality.
+    - **Per-example crossing-α distributions show the real signal.** Each example gets a crossing-α (first α where prediction is correct). Grokked W_ce: the ~75% of non-baseline examples flip within Δα≈0.01 (P75–P95 = [0.985, 0.995]) — genuinely narrow per-example margins. W_self: spread over Δα≈0.65. PCA-128: spread over Δα≈0.74. The steepness gradient is directly explained: grokked produces near-uniform per-example crossing-α; non-grokked produces heterogeneous per-example crossing-α.
+    - **Within each class, crossing-α is bimodal** — ~25% at α=0 (from baseline Phi-2 accuracy), ~75% at α≈0.99. Per-class averaging of these two groups produces the graded class-mean curve that misled the initial analysis.
+    - **Scale rescaling** shifts the crossing-α left (Δα≈0.09 for 1370×) but preserves the tight distribution — the margin uniformity is in the geometry, not the norm.
+    - **Ceilings: 1.0** (grokked) > **0.83** (W_self, self-referential limit) > **0.55** (PCA-128). The PCA-128 ceiling is notable: 93% variance retained but caps at 0.55 (860/2823 examples never reach ceiling), while the grokked source at 128 raw dims (far less overlap with Phi-2 variance) reaches 1.0. The discarded 7% of PCA variance contains class-discriminative structure that the CE objective requires. This is independent evidence that grokked geometry matters for the ceiling, separate from the margin-structure steepness.
+    - See `artifacts/self_projection/crossing_alpha_hist.png` and `artifacts/self_projection/comparison_summary.md`.
