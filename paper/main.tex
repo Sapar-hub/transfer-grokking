@@ -346,8 +346,8 @@ The mechanism is a norm mismatch introduced by training $W_{\text{CE}}$
 through Phi-2's frozen \texttt{final\_layernorm}.  Because layernorm is
 scale-invariant, the cross-entropy objective does not constrain the magnitude
 of $W_{\text{CE}}$'s output; weight decay drives it toward a small norm
-($\|W_{\text{CE}}(h)\| \approx 0.32$ vs.\ $\|h_{\text{Phi-2}}\| \approx 48.3$
-at L31, a ratio of $0.007$).  At any $\alpha < 1.0$ this small-norm signal is
+ ($\|W_{\text{CE}}(h)\| \approx 0.32$ vs.\ $\|h_{\text{Phi-2}}\| \approx 225.8$
+at L31, a ratio of $0.0014$).  At any $\alpha < 1.0$ this small-norm signal is
 negligible next to Phi-2's own residual; only at $\alpha = 1.0$, where
 Phi-2's own state is fully zeroed out, does the injected signal have any
 influence on the output.  Perplexity mirrors this exactly: flat at $\sim 63.3$
@@ -359,8 +359,8 @@ Multiplication shows the identical pattern, with an even flatter intermediate
 region: accuracy is pinned at the random-baseline-adjacent $0.030$ for all
 $\alpha \leq 0.7$, then jumps to $1.0$ at $\alpha = 1.0$, exact across all
 five seeds.  The norm ratio for multiplication
-($\|W_{\text{CE}}(h)\| \approx 0.25$ vs.\ $\|h_{\text{Phi-2}}\| \approx 48.3$,
-ratio $\approx 0.005$) is consistent with addition's, confirming the
+ ($\|W_{\text{CE}}(h)\| \approx 0.25$ vs.\ $\|h_{\text{Phi-2}}\| \approx 225.8$,
+ratio $\approx 0.0011$) is consistent with addition's, confirming the
 mechanism is operation-agnostic.  Perplexity at $\alpha = 1.0$ reaches
 $6.10 \times 10^{8}$, similarly catastrophic and similarly flat below it.
 
