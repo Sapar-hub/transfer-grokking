@@ -1,7 +1,7 @@
 # Transfer Grokking — Geometry Transfer Experiments
 
 [![Code DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21142333.svg)](https://doi.org/10.5281/zenodo.21142333)
-[![Preprint DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21100972.svg)](https://doi.org/10.5281/zenodo.21100972)
+[![Preprint DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21100971.svg)](https://doi.org/10.5281/zenodo.21100971)
 [![ORCID](https://img.shields.io/badge/ORCID-0009--0001--2717--732X-a6ce39?logo=orcid&logoColor=white)](https://orcid.org/0009-0001-2717-732X)
 
 **Core question:** Can a grokked transformer's modular arithmetic circuit (discrete Fourier features) be transferred to an LLM's residual stream?

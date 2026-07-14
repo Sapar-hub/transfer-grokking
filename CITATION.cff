@@ -16,8 +16,8 @@ identifiers:
     value: "10.5281/zenodo.21142333"
     description: "Software archive"
   - type: doi
-    value: "10.5281/zenodo.21100972"
-    description: "Preprint"
+    value: "10.5281/zenodo.21100971"
+    description: "Preprint (all versions)"
 keywords:
   - grokking
   - mechanistic interpretability
