@@ -378,8 +378,10 @@ $6.10 \times 10^{8}$, similarly catastrophic and similarly flat below it.
 \paragraph{Comparison with L10 injection.}
 For contrast, we also evaluate the L31-patched model against the original
 L10-patch approach from prior work.  At L10, CE-trained $W$ actually
-\emph{underperforms} MSE-trained $W$ ($0.26$ vs.\ $0.305$ at $\alpha=0.5$),
-confirming that the injection depth---not the projection quality---was the
+\emph{underperforms} MSE-trained $W$ ($0.26$ vs.\ $0.305$ at $\alpha=0.5$);
+both values are within noise of the unpatched baseline ($0.235$), and the
+difference is not meaningful.
+This confirms that the injection depth---not the projection quality---was the
 primary confound in prior failures.  At L31, the remaining computation is
 zero, so any well-aligned injection signal dominates the residual.
 
@@ -441,6 +443,16 @@ injection here replaces the final state without cascading effects.
 This mirrors the ``neural function call'' pattern: the last layer acts as
 a dispatch point where computation from another model can be spliced in.
 
+It is important to note that the $\alpha=1.0$ result is partially
+guaranteed by construction: $W_{\text{CE}}$ is trained through the same
+frozen \texttt{final\_layernorm} $\rightarrow$ \texttt{lm\_head} path used
+at L31 evaluation, so the $\alpha=1.0$ accuracy reproduces the logit-lens
+accuracy from Section~4 rather than providing independent evidence.
+The informative content of the L31 injection experiment is therefore the
+layer dependence ($\text{L31} \gg \text{L10}$) and the norm-mismatch
+mechanism governing intermediate $\alpha$, not the $\alpha=1.0$ number in
+isolation.
+
 \paragraph{Generality and limitations.}
 Our findings hold across two modular arithmetic operations (addition and
 multiplication) and across five random seeds.  The Phi-2 tokenizer's
@@ -452,7 +464,7 @@ strategies (Appendix~\ref{app:crossmodel}).
 The primary limitation is that intermediate-strength injection provides no
 functional benefit: the transferred representation only influences model
 output once it nearly replaces the residual stream ($\alpha \gtrsim 0.98$),
-at which point language-modeling quality rises by a modest 25\% (PPL~99.8
+at which point language-modeling perplexity rises by a modest 25\% (PPL~99.8
 at $\alpha=0.995$, accuracy~0.98) before collapsing 8 orders of magnitude
 at $\alpha=1.0$ (Table~\ref{tab:seed_ppl}).  The transition is steep but
 continuous---accuracy climbs from baseline to $1.0$ within $\alpha\in[0.95,
