@@ -44,6 +44,7 @@ def run_step(script, *args):
 def main():
     check_models()
     print(f"=== Pipeline started at {datetime.now()} ===")
+    print("(= Steps 1-6: reproduce v2.0.0 paper result =)")
 
     # ---- Step 1: Cache activations ----
     for op in OPS:
@@ -113,6 +114,7 @@ def main():
                 run_step("random_baseline.py", str(seed), op, "--partial")
             print(f"[done] random_baseline op={op}")
 
+    # (= Step 7: v3.0.0 margin-analysis correction — supersedes v2.0.0 coarse-grid interpretation =)
     # ---- Step 7: Margin Analysis (fine-grid crossing-α, per-class, perplexity) ----
     # Depends on self_projection.py having run first (for control models W_self,
     # W_ce_scaled, W_ce_pca) and ce_projection (for W_ce seeds).  Writes to

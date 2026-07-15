@@ -23,38 +23,36 @@ Configs live in `model.py`:
 
 ## Entry Points
 Every script is standalone (`if __name__ == "__main__": main()`):
-| Script | Purpose |
-|--------|---------|
-| `main.py` | Original pipeline orchestrator (steps 1–8) |
-| `train_small.py` | Train small model (30% data, rolling window grokking detection) |
-| `train.py` | Train either small or big (70/30 split) |
-| `verify_fourier.py` | Confirm circular Fourier features |
-| `probe_phi2.py` | Probe Phi-2 layers for mod arithmetic structure |
-| `scan_models.py` | Probe Qwen2-Math, DeepSeek-Math, Phi-3 |
-| `experiment_a.py` | Learned projection 128→2560 (Small→Phi-2) |
-| `clean_test.py` | Clean experiment: Small→Big (same tokenizer) |
-| `experiments/line_a.py` | SVCCA heatmap + noise injection steering |
-| `experiments/line_b.py` | Projected probe deep-dive |
-| `steering.py` | Steering vector + random orthogonal projection |
-| `eval_degradation.py` | Downstream benchmark eval (needs lm_eval) |
-| `embed_patch.py` | inputs_embeds test: W_emb 128→2560, Phi-2 bypassing BPE |
-| `residual_patch.py` | Inject computed state (h_A) into Phi-2 residual stream via W + context prompt |
-| `multi_layer_patch.py` | Inject h_A at 5 layers simultaneously (per-layer W + same-W ablation) |
-| `nonlinear_adapter.py` | Train Linear/MLP adapter between W(h_A) and frozen lm_head — bridge Fourier→language |
-| `probe_final_phi2.py` | Train Linear(2560→97) on Phi-2 final layer (L31) activations from single template |
-| `ce_projection.py` | Train W: 128→2560 via CE through frozen lm_head (no layernorm); compare MSE vs CE |
-| `l31_patch.py` | Patch W_CE/W_MSE at Phi-2 L31 (last layer) — alpha sweep comparison vs L10 |
-| `eval_l31_perplexity.py` | Perplexity degradation: L31 patch on WikiText-2 |
-| `cross_model_l31.py` | Cross-model L31: W_CE + alpha sweep for Qwen2-Math |
-| `cross_model_probe.py` | Cross-model probe: probe on W_CE-injected hidden states (bypasses BPE tokenizer barrier) |
-| `random_baseline.py` | Control experiments: one-hot + random untrained network (seeds 0-4), L31 α-sweep |
-| `analyze_baseline_asymmetry.py` | Phi-2 prediction distribution for add vs mult prompts |
-| `trivial_baselines.py` | Few-shot (5-shot) + LoRA baselines |
-| `self_projection.py` | Control: train W_self from Phi-2's own L31 acts, α-sweep at L31 vs W_ce |
-| `margin_analysis.py` | Multi-seed crossing-α + per-class breakdown + perplexity fine grid (supersedes `self_projection.py`'s coarse α sweep; writes to `artifacts/margin_analysis/`) |
-| `setup_phi2_cache.py` | Phi-2 model cache verification after manual download |
-
-Scripts above `ce_projection.py` are primarily in `experiments/` (exploratory dead ends). Core training scripts (`train_small.py`, `train.py`, `clean_test.py`, etc.) remain at root level. Scripts from `ce_projection.py` onward represent the final successful approach.
+| Script | Purpose | Phase |
+|--------|---------|-------|
+| `train_small.py` | Train small model (30% data, rolling window grokking detection) | aux |
+| `train.py` | Train either small or big (70/30 split) | aux |
+| `verify_fourier.py` | Confirm circular Fourier features | aux |
+| `setup_phi2_cache.py` | Phi-2 model cache verification after manual download | aux |
+| `main.py` | Original pipeline orchestrator (steps 1–8) | archive |
+| `probe_phi2.py` | Probe Phi-2 layers for mod arithmetic structure | archive |
+| `scan_models.py` | Probe Qwen2-Math, DeepSeek-Math, Phi-3 | archive |
+| `experiment_a.py` | Learned projection 128→2560 (Small→Phi-2) | archive |
+| `clean_test.py` | Clean experiment: Small→Big (same tokenizer) | archive |
+| `experiments/line_a.py` | SVCCA heatmap + noise injection steering | archive |
+| `experiments/line_b.py` | Projected probe deep-dive | archive |
+| `steering.py` | Steering vector + random orthogonal projection | archive |
+| `eval_degradation.py` | Downstream benchmark eval (needs lm_eval) | archive |
+| `embed_patch.py` | inputs_embeds test: W_emb 128→2560, Phi-2 bypassing BPE | archive |
+| `residual_patch.py` | Inject computed state (h_A) into Phi-2 residual stream via W + context prompt | archive |
+| `multi_layer_patch.py` | Inject h_A at 5 layers simultaneously (per-layer W + same-W ablation) | archive |
+| `nonlinear_adapter.py` | Train Linear/MLP adapter between W(h_A) and frozen lm_head — bridge Fourier→language | archive |
+| `probe_final_phi2.py` | Train Linear(2560→97) on Phi-2 final layer (L31) activations from single template | archive |
+| `cross_model_l31.py` | Cross-model L31: W_CE + alpha sweep for Qwen2-Math | archive |
+| `analyze_baseline_asymmetry.py` | Phi-2 prediction distribution for add vs mult prompts | archive |
+| `trivial_baselines.py` | Few-shot (5-shot) + LoRA baselines | archive |
+| `ce_projection.py` | Train W: 128→2560 via CE through frozen lm_head; compare MSE vs CE | core (v2.0.0) |
+| `l31_patch.py` | Patch W_CE/W_MSE at Phi-2 L31 — alpha sweep vs L10 | core (v2.0.0) |
+| `eval_l31_perplexity.py` | Perplexity degradation: L31 patch on WikiText-2 | core (v2.0.0) |
+| `cross_model_probe.py` | Cross-model probe: probe on W_CE-injected hidden states | core (v2.0.0) |
+| `random_baseline.py` | Control: one-hot + random untrained network, L31 α-sweep | core (v2.0.0) |
+| `self_projection.py` | Control: train W_self from Phi-2's own L31 acts | control |
+| `margin_analysis.py` | Multi-seed crossing-α + per-class + perplexity fine grid (v3.0.0 correction) | correction (v3.0.0) |
 
 ## Run order
 `self_projection.py` must run before `margin_analysis.py` — `margin_analysis.py` loads the control models (W_self, W_ce_scaled, W_ce_pca) that `self_projection.py` trains. `margin_analysis.py` supersedes `self_projection.py`'s coarse α sweep with fine-resolution crossing-α and per-class statistics, writing to `artifacts/margin_analysis/`.
