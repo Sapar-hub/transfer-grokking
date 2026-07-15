@@ -51,10 +51,13 @@ Every script is standalone (`if __name__ == "__main__": main()`):
 | `analyze_baseline_asymmetry.py` | Phi-2 prediction distribution for add vs mult prompts |
 | `trivial_baselines.py` | Few-shot (5-shot) + LoRA baselines |
 | `self_projection.py` | Control: train W_self from Phi-2's own L31 acts, α-sweep at L31 vs W_ce |
-| `margin_analysis.py` | Multi-seed per-example crossing-α + per-class breakdown + perplexity fine grid |
+| `margin_analysis.py` | Multi-seed crossing-α + per-class breakdown + perplexity fine grid (supersedes `self_projection.py`'s coarse α sweep; writes to `artifacts/margin_analysis/`) |
 | `setup_phi2_cache.py` | Phi-2 model cache verification after manual download |
 
 Scripts above `ce_projection.py` are primarily in `experiments/` (exploratory dead ends). Core training scripts (`train_small.py`, `train.py`, `clean_test.py`, etc.) remain at root level. Scripts from `ce_projection.py` onward represent the final successful approach.
+
+## Run order
+`self_projection.py` must run before `margin_analysis.py` — `margin_analysis.py` loads the control models (W_self, W_ce_scaled, W_ce_pca) that `self_projection.py` trains. `margin_analysis.py` supersedes `self_projection.py`'s coarse α sweep with fine-resolution crossing-α and per-class statistics, writing to `artifacts/margin_analysis/`.
 
 ## Commands
 ```bash
@@ -77,7 +80,7 @@ python l31_patch.py                 # Patch W_CE/W_MSE at Phi-2 L31 (alpha sweep
 python eval_l31_perplexity.py          # Perplexity degradation of L31 patch on WikiText-2
 python cross_model_l31.py              # Cross-model validation (Qwen2-Math W_CE + L27 sweep)
   python self_projection.py           # Control: W_self from Phi-2 L31 acts, α-sweep vs W_ce |
-python margin_analysis.py           # Multi-seed crossing-α + per-class + perplexity fine grid
+python margin_analysis.py           # Fine-grid crossing-α + per-class + perplexity (supersedes self_projection.py's sweep)
 python cross_model_probe.py            # Cross-model probe (bypasses BPE tokenizer barrier)
 ```
 
@@ -123,13 +126,11 @@ Scripts skip computation if a cache file exists:
 | `self_projection.py` | `artifacts/self_projection/per_class_results.csv` | itself (cache) |
 | `self_projection.py` | `artifacts/self_projection/per_class_comparison.png` | itself (cache) |
 | `self_projection.py` | `artifacts/self_projection/per_class_dynamics.png` | itself (cache) |
-| `self_projection.py` | `artifacts/self_projection/crossing_alpha_data.pkl` | itself (cache) |
-| `self_projection.py` | `artifacts/self_projection/crossing_alpha_hist.png` | itself (cache) |
-| `margin_analysis.py` | `artifacts/self_projection/crossing_alpha_data.pkl` | itself (cache) |
-| `margin_analysis.py` | `artifacts/self_projection/crossing_alpha_hist.png` | itself (cache) |
-| `margin_analysis.py` | `artifacts/self_projection/per_class_crossing.csv` | itself (cache) |
-| `margin_analysis.py` | `artifacts/self_projection/perplexity_fine_grid.csv` | itself (cache) |
-| `margin_analysis.py` | `artifacts/self_projection/perplexity_fine_grid.png` | itself (cache) |
+| `margin_analysis.py` | `artifacts/margin_analysis/crossing_alpha_data.pkl` | itself (cache) |
+| `margin_analysis.py` | `artifacts/margin_analysis/crossing_alpha_hist.png` | itself (cache) |
+| `margin_analysis.py` | `artifacts/margin_analysis/per_class_crossing.csv` | itself (cache) |
+| `margin_analysis.py` | `artifacts/margin_analysis/perplexity_fine_grid.csv` | itself (cache) |
+| `margin_analysis.py` | `artifacts/margin_analysis/perplexity_fine_grid.png` | itself (cache) |
 
 ## Gotchas
 - **Weight decay 1.0** is critical for grokking (L2 forces circuit formation)

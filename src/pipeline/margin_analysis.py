@@ -16,7 +16,8 @@ import csv, pickle
 from utils import DEVICE, P
 
 ARTIFACTS = "artifacts"
-OUT_DIR = f"{ARTIFACTS}/self_projection"
+OUT_DIR = f"{ARTIFACTS}/margin_analysis"
+SELF_DIR = f"{ARTIFACTS}/self_projection"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 SEEDS = [int(s) for s in (sys.argv[1].split(",") if len(sys.argv) > 1 else "42,43,44")]
@@ -220,13 +221,14 @@ def main():
             print(f"  WARNING: {path} not found, skipping seed={seed}")
 
     # Control models (seed=42 only)
+    # Control models trained by self_projection.py (must run first)
     controls = [
         ("W_ce (1370x) seed=42",
-         f"{OUT_DIR}/seeds/W_ce_scaled_seed42.pth", D_SMALL, D_PHI2, "h_A_scaled", GRID_WCE_SCALED),
+         f"{SELF_DIR}/seeds/W_ce_scaled_seed42.pth", D_SMALL, D_PHI2, "h_A_scaled", GRID_WCE_SCALED),
         ("W_self seed=42",
-         f"{OUT_DIR}/seeds/W_self_seed42.pth", D_PHI2, D_PHI2, "phi2", GRID_SELF),
+         f"{SELF_DIR}/seeds/W_self_seed42.pth", D_PHI2, D_PHI2, "phi2", GRID_SELF),
         ("PCA-128 seed=42",
-         f"{OUT_DIR}/seeds/W_ce_pca_seed42.pth", D_SMALL, D_PHI2, "pca", GRID_PCA),
+         f"{SELF_DIR}/seeds/W_ce_pca_seed42.pth", D_SMALL, D_PHI2, "pca", GRID_PCA),
     ]
     for name, path, idim, odim, src, grid in controls:
         if os.path.exists(path):
@@ -401,6 +403,9 @@ def main():
 
             if "W_self" in name:
                 # W_self: patch depends on the input itself, need per-sample
+                # patching; the accelerated mode uses random h_A from a pool,
+                # which is incorrect for W_self.  self_projection.py covers
+                # this case with per-sample patching.
                 print("    W_self perplexity not implemented in accelerated mode (needs per-sample patching)")
                 ppl_results.append({"model": name, "alpha": 0.0, "loss": float('nan'), "ppl": float('nan')})
                 continue
