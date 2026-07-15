@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""6-step pipeline: cache → CE projection → L31 patch → perplexity → cross-model → controls.
+"""7-step pipeline: cache → CE projection → L31 patch → perplexity → cross-model → controls → margin analysis.
 Seeds 42–46, ops add + mult.
 Requires grokked model weights committed via LFS (`git lfs pull` first).
 """
 
 import csv
+import pickle
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+import numpy as np
 
 BASE = Path(__file__).parent
 SCRIPTS = BASE / "src" / "pipeline"
@@ -41,6 +44,7 @@ def run_step(script, *args):
 def main():
     check_models()
     print(f"=== Pipeline started at {datetime.now()} ===")
+    print("(= Steps 1-6: reproduce v2.0.0 paper result =)")
 
     # ---- Step 1: Cache activations ----
     for op in OPS:
@@ -110,6 +114,22 @@ def main():
                 run_step("random_baseline.py", str(seed), op, "--partial")
             print(f"[done] random_baseline op={op}")
 
+    # (= Step 7: v3.0.0 margin-analysis correction — supersedes v2.0.0 coarse-grid interpretation =)
+    # ---- Step 7: Margin Analysis (fine-grid crossing-α, per-class, perplexity) ----
+    # Depends on self_projection.py having run first (for control models W_self,
+    # W_ce_scaled, W_ce_pca) and ce_projection (for W_ce seeds).  Writes to
+    # artifacts/margin_analysis/, supersedes eval_l31_perplexity's coarser grid.
+    for op in OPS:
+        suf = "_mult" if op == "mult" else ""
+        pkl_path = ARTIFACTS / "margin_analysis" / f"crossing_alpha_data{suf}.pkl"
+        if pkl_path.exists():
+            print(f"[skip] margin_analysis op={op}")
+        else:
+            seed_str = ",".join(str(s) for s in SEEDS)
+            print(f"[run]  margin_analysis op={op} (seeds {seed_str})")
+            run_step("margin_analysis.py", seed_str, op)
+            print(f"[done] margin_analysis op={op}")
+
     print(f"=== Pipeline finished at {datetime.now()} ===")
 
     # Print summary
@@ -124,6 +144,23 @@ def main():
                 if len(rows) >= 3:
                     val = rows[2][3]  # 3rd row, 4th column = W_CE alpha=0.5
                     print(f"  seed{seed}: {val}")
+
+    # Margin analysis summary
+    for op in OPS:
+        suf = "_mult" if op == "mult" else ""
+        pkl_path = ARTIFACTS / "margin_analysis" / f"crossing_alpha_data{suf}.pkl"
+        if pkl_path.exists():
+            with open(pkl_path, "rb") as f:
+                results = pickle.load(f)
+            # Show W_ce (raw) first seed's key stats
+            for name in list(results.keys()):
+                if "W_ce (raw)" in name:
+                    c = results[name]["crossing"]
+                    v = c[~np.isnan(c)]
+                    unreach = int(np.isnan(c).sum())
+                    print(f"  margin {name}: μ={v.mean():.4f} σ={v.std():.4f} "
+                          f"med={np.median(v):.4f} unreach={unreach}")
+                    break
 
 
 if __name__ == "__main__":

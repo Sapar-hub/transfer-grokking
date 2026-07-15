@@ -56,9 +56,13 @@
   layer (L31 for Phi-2) achieves perfect task accuracy ($1.0$) at full strength
   ($\alpha = 1.0$), while intermediate injection strengths ($\alpha \leq 0.7$)
   leave both task accuracy and language-modeling perplexity statistically
-  indistinguishable from Phi-2's unpatched baseline.  This discontinuity---a
-  hard override rather than a smooth tradeoff---is exact across all five seeds
-  and both operations, and follows from a layernorm-induced norm mismatch
+  indistinguishable from Phi-2's unpatched baseline, with accuracy reaching
+  $1.0$ only at full replacement ($\alpha = 1.0$).  This sharp threshold is
+  exact across all five seeds and both operations; fine-resolution analysis
+  reveals the transition is a steep but continuous S-curve compressed into
+  $\Delta\alpha \approx 0.05$ (86\% of non-baseline examples), which a
+  coarse 5-point grid represented as an apparent step (Section~5).  The
+  underlying mechanism is a layernorm-induced norm mismatch
   between the projected state and the residual stream (Section~7).
   Results replicate across modular addition and multiplication (both mod~97),
   demonstrating that the transferred representation is task-agnostic.
@@ -312,8 +316,9 @@ at the final transformer block (L31 for Phi-2), sweeping $\alpha \in \{0.0,
   Blue line: accuracy (left axis).  Red dashed line: perplexity (right axis,
   log scale).  Gray dashed line: random baseline ($1/97 \approx 0.010$).
   Shaded regions: $\pm 1$ std over 5 seeds (negligible at reported precision for accuracy).  Accuracy and perplexity are both
-  flat through $\alpha = 0.7$, then jump discontinuously at $\alpha = 1.0$---a
-  hard override, not a gradual tradeoff.}
+  flat through $\alpha = 0.7$, then rise steeply to $1.0$ at $\alpha =
+  1.0$---a sharp threshold compressed into $\Delta\alpha \approx 0.05$ that
+  the coarse 5-point grid samples as a step.}
   \label{fig:alpha_add}
 \end{figure}
 
@@ -338,9 +343,15 @@ at the final transformer block (L31 for Phi-2), sweeping $\alpha \in \{0.0,
 At $\alpha = 1.0$, the injected state completely replaces the L31 residual and
 accuracy reaches $1.0$ (Table~\ref{tab:alpha_sweep}).  Accuracy at
 intermediate $\alpha$ is statistically flat at Phi-2's unmodified baseline
-($0.235$) through $\alpha = 0.7$, then jumps discontinuously to $1.0$ only at
-full replacement---exact across all five seeds (42--46), with negligible
-variance ($\pm 0.002$) only at $\alpha = 0.7$.
+($0.235$) through $\alpha = 0.7$, then transitions steeply to $1.0$ at full
+replacement---exact across all five seeds (42--46), with negligible
+variance ($\pm 0.002$) only at $\alpha = 0.7$.  Fine-resolution analysis
+reveals the transition is a continuous S-curve: 86\% of non-baseline
+examples first become correct within $\Delta\alpha \approx 0.05$
+($\alpha\in[0.95, 1.0]$), and every example that flips remains correct
+through all higher $\alpha$ (zero non-monotonic in a 73-point
+spot-check).  The coarse 5-point grid resolves only two samples in this
+interval ($\alpha=0.7$ and $\alpha=1.0$), producing the apparent step.
 
 The mechanism is a norm mismatch introduced by training $W_{\text{CE}}$
 through Phi-2's frozen \texttt{final\_layernorm}.  Because layernorm is
@@ -357,7 +368,7 @@ through $\alpha = 0.7$, then catastrophic at $\alpha = 1.0$ ($5.64 \times
 \paragraph{Multiplication results.}
 Multiplication shows the identical pattern, with an even flatter intermediate
 region: accuracy is pinned at the random-baseline-adjacent $0.030$ for all
-$\alpha \leq 0.7$, then jumps to $1.0$ at $\alpha = 1.0$, exact across all
+$\alpha \leq 0.7$, then transitions steeply to $1.0$ at $\alpha = 1.0$, exact across all
 five seeds.  The norm ratio for multiplication
  ($\|W_{\text{CE}}(h)\| \approx 0.25$ vs.\ $\|h_{\text{Phi-2}}\| \approx 225.8$,
 ratio $\approx 0.0011$) is consistent with addition's, confirming the
@@ -388,13 +399,13 @@ pipeline on $(a \times b) \bmod 97$:
   epoch~5,000).
 \item \textbf{L31 injection:} $\alpha=1.0$ achieves $1.0$ accuracy for both
   operations; all $\alpha \leq 0.7$ remain statistically at baseline
-  ($0.235$ add, $0.030$ mult), confirming the discontinuous-override
+  ($0.235$ add, $0.030$ mult), confirming the sharp-threshold
   pattern is not addition-specific.
 \end{itemize}
 
 The qualitative pattern is identical across tasks: CE resolves Barrier~1,
 L31 resolves Barrier~2.  Both operations exhibit the same
-discontinuous-override behavior---flat at baseline through $\alpha=0.7$,
+sharp-threshold pattern---flat at baseline through $\alpha=0.7$,
 perfect at $\alpha=1.0$---confirming the norm-mismatch mechanism is
 operation-agnostic.
 
@@ -440,13 +451,17 @@ strategies (Appendix~\ref{app:crossmodel}).
 
 The primary limitation is that intermediate-strength injection provides no
 functional benefit: the transferred representation only influences model
-output once it fully overrides the residual stream at $\alpha = 1.0$, at which
-point language-modeling quality collapses by 7--8 orders of magnitude
-(Table~\ref{tab:seed_ppl}).  This is not a smooth accuracy/fluency tradeoff,
-but a consequence of training $W_{\text{CE}}$ through a scale-invariant final
-layernorm: the cross-entropy objective has no incentive to match the norm of
-Phi-2's own residual stream, so weight decay collapses $W_{\text{CE}}$'s
-output to a norm roughly 100--200$\times$ smaller than the target activation.
+output once it nearly replaces the residual stream ($\alpha \gtrsim 0.98$),
+at which point language-modeling quality rises by a modest 25\% (PPL~99.8
+at $\alpha=0.995$, accuracy~0.98) before collapsing 8 orders of magnitude
+at $\alpha=1.0$ (Table~\ref{tab:seed_ppl}).  The transition is steep but
+continuous---accuracy climbs from baseline to $1.0$ within $\alpha\in[0.95,
+1.0]$ (a $\Delta\alpha\approx 0.05$ window), with no evidence of
+non-monotonic behavior---a consequence of training $W_{\text{CE}}$ through
+a scale-invariant final layernorm: the cross-entropy objective has no
+incentive to match the norm of Phi-2's own residual stream, so weight
+decay collapses $W_{\text{CE}}$'s output to a norm roughly
+100--200$\times$ smaller than the target activation.
 A natural fix---rescaling $W_{\text{CE}}$'s output to match
 $\|h_{\text{Phi-2}}\|$ at injection time, or adding an explicit norm-matching
 term to the training objective---is left to future work, along with exploring
@@ -507,8 +522,8 @@ that neither achieves meaningful transfer at this depth.
   \includegraphics[width=0.75\textwidth]{../artifacts/final/paper_figures/alpha_sweep_multiply.png}
   \caption{\textbf{L31 $\alpha$-sweep for multiplication mod~97.}
   Same format as Figure~\ref{fig:alpha_add}.  Accuracy is flat at the
-  random-adjacent baseline ($0.030$) through $\alpha=0.7$, then jumps
-  discontinuously to $1.0$ at $\alpha=1.0$---identical to addition.}
+  random-adjacent baseline ($0.030$) through $\alpha=0.7$, then
+  transitions steeply to $1.0$ at $\alpha=1.0$---identical to addition.}
   \label{fig:alpha_mult}
 \end{figure}
 
@@ -524,8 +539,8 @@ side-by-side, highlighting the consistent pattern.
   \caption{\textbf{Cross-task comparison.}
   Addition (blue) and multiplication (orange) accuracy across $\alpha$ values.
   Both tasks reach $1.0$ at $\alpha=1.0$; at every $\alpha \leq 0.7$ both
-  remain statistically at their respective baselines---the discontinuous
-  override pattern is operation-agnostic.}
+  remain statistically at their respective baselines---the sharp-threshold
+  pattern is operation-agnostic.}
   \label{fig:cross_task}
 \end{figure}
 
@@ -606,7 +621,7 @@ seeds~43--46); this was traced to a stale-checkpoint caching bug in the
 training pipeline---seeds~43--46 had not yet been retrained under the
 corrected objective at the time of that observation, not a genuine property
 of the optimization landscape.  Once all five seeds were retrained
-consistently, the discontinuous-override pattern reported in Section~5 held
+consistently, the sharp-threshold pattern reported in Section~5 held
 identically across all of them, with perplexity collapsing 7--8 orders of
 magnitude at $\alpha = 1.0$ and remaining flat ($< 0.1\%$ shift) at every
 lower $\alpha$.
